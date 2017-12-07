@@ -3,6 +3,10 @@
 #############################################################################################
 directory = "/Users/schilder/Desktop/x2k/data/"  # Set your directory
 
+### HERE BE A NEW LINE
+code = 1
+# Oh and also this
+
 # # Create test individual
 # from random import choice
 # def createPopulation(popSize, parameterLength):
