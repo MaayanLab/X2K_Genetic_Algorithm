@@ -6,6 +6,7 @@ directory = "/Users/schilder/Desktop/x2k/data/"  # Set your directory
 ### HERE BE A NEW LINE
 code = 1
 # Oh and also this
+new_push = "this is a pussshh"
 
 # # Create test individual
 # from random import choice
