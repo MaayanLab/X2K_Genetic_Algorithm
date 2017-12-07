@@ -1,0 +1,327 @@
+---
+title: "Validation_data_filtering"
+output: html_document
+---
+
+* Subset validation data to only the ones used
+  1. Drug target references: 
+    + Exclude overlapping DrugBank/Target Central/other dataset entries
+    + Include only Kinase targets
+  2. Filter CREEDS drug perturbation expression data:
+    + Include only drugs from filtered drug-target list
+* Current limitations:
+    + Need a better identifier than Smiles to match up and filter drugs 
+
+
+# Load packages & Subset GMT functions
+```{r}
+setwd("~/Dropbox/Maayan_Lab/X2K/4) Validation_datasets/")
+library(cogena)
+
+subset_GMT <- function(GMTfile, subset_names){
+  count=1
+  CREEDS_subset <- list()
+  booleans = logical(0)
+  for(i in GMTfile){
+    if( names(GMTfile[count]) %in% subset_names ){
+      booleans <- c(booleans, TRUE)
+      #print("Add to GMT subset")
+    } else{
+      booleans <-c(booleans, FALSE)
+      #print("Experiment not in drug-target list.")
+      }
+    count = count+1
+  }
+  GMT_subset <-GMTfile[booleans]
+  return(GMT_subset)
+}
+
+
+# Include only kinases using Kinome database *******
+library(readxl)
+kinome <- read_excel("Drug-Target_Data/Kinome_Hsap.xls")
+   
+ GMT_kinome_filter <- function(GMTfile, kinome){
+   booleans <-logical(0)
+   count = 1
+   for(i in GMTfile){
+     if( sum(GMTfile[count][[1]] %in% kinome$Name) > 0 ){
+      booleans <- c(booleans, TRUE)
+      #print("Drug added to GMT kinome subset")
+     } else{
+      booleans <-c(booleans, FALSE)
+      #print("Drug does not have any kinases as targets")
+     }
+    count = count+1
+   }
+  GMT_kinome <- GMTfile[booleans]
+  return(GMT_kinome)
+ }
+
+```
+
+
+
+
+# [Dataset 1] CREEDS_manual_single_drug_perturbations / ...
+```{r}
+#********** Import CREEDS drug perturbation transcriptome data: **********#
+  CREEDS.ManualDrugs <-gmt2list("Perturbation_Data/CREEDS/single_drug_perturbations-v1.0.gmt")
+  # Import CREEDS_drugs metadata
+  CREEDS.ManualDrugs_meta <-read.csv("Perturbation_Data/CREEDS/CREEDS_metadata_single_drug_perturbations-v1.0.csv")
+```
+
+## [1.A]... / DrugBank.TargetCentral + kinome
+```{r}
+#********** Import combined Drugbank + Target Central drug target list **********#
+DrugBank.TargetCentral <- DrugBank.TargetCentral_orig <- read.csv("Drug-Target_Data/11-17-17_WithDrugBankIDs/3_Union_EdgeList_v1_11-17-17.csv")
+
+
+# Include only kinases using Kinome database *******
+  DB.TC_kinome_filter <- DrugBank.TargetCentral$TargetID_Entrez %in% kinome$Entrez_GeneID
+  DrugBank.TargetCentral <- DrugBank.TargetCentral[DB.TC_kinome_filter,]
+    
+
+# [A] DrugBank-TargetCentral filter
+  # Filter the CREEDS metadata to just the drugs we have targets for
+    #DB.TC_filter <-CREEDS.ManualDrugs_meta$smiles %in% DrugBank.TargetCentral$DrugSMILES
+    DB.TC_filter <-CREEDS.ManualDrugs_meta$drugbank_id %in% DrugBank.TargetCentral$DrugID_DrugBank
+
+  CREEDS_meta.filter <- CREEDS.ManualDrugs_meta[DB.TC_filter,]
+  remodified_names <- c(paste(CREEDS_meta.filter$drug_name,"-dn",sep=""),
+                        paste(CREEDS_meta.filter$drug_name,"-up",sep="") )
+  
+# Filter CREEDS data
+CREEDS_manualDrugs_DB.TC <-subset_GMT(CREEDS.ManualDrugs, remodified_names)
+length(CREEDS_manualDrugs_DB.TC)
+# Write filtered list to GMT file
+file.remove("Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_DG.TC_filtered.gmt")
+gmtlist2file(CREEDS_manualDrugs_DB.TC, "Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_Manual.Drugs_DG.TC_filtered.gmt")    
+```
+
+## [1.B] ... / Drug Repurposing Hub
+```{r}
+#********** Import combined Drug Repurposing Hub target list **********#
+DrugRepurposingHub <-read.table("Drug-Target_Data/Drug Repurposing Hub/Repurposing_Hub_export.txt", 
+                                  header=T, sep="\t", fill = T)
+  # Get rid of any drugs that don't have targets
+  DrugRepurposingHub <- subset(DrugRepurposingHub, Target!="") 
+  write.table(DrugRepurposingHub, "Drug-Target_Data/Drug Repurposing Hub/DRH_validation.txt", row.names=FALSE)
+  
+  
+# [B] Drug Repurposing Hub filter
+  DRH_filter <-CREEDS.ManualDrugs_meta$smiles %in% DrugRepurposingHub$SMILES
+
+  CREEDS_meta.filter <- CREEDS.ManualDrugs_meta[DRH_filter,]
+  remodified_names <- c(paste(CREEDS_meta.filter$drug_name,"-dn",sep=""),
+                        paste(CREEDS_meta.filter$drug_name,"-up",sep="") )
+  
+# Filter CREEDS data
+CREEDS_manualDrugs_DRH <-subset_GMT(CREEDS.ManualDrugs, remodified_names)
+length(CREEDS_manualDrugs_DRH)
+
+# Write filtered list to GMT file
+dir = "Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_Manual.Drugs_DRH_filtered.gmt"
+if(file.exists(dir)){file.remove(dir) } else{print("Doesn't exist")}
+gmtlist2file(CREEDS_manualDrugs_DRH, dir)  
+```
+
+
+
+# [Dataset 2] CREEDS_DrugMatrix / ...
+```{r}
+#********** Import CREEDS DrugMatrix perturbation transcriptome data: **********#
+  CREEDS_DrugMatrix <- gmt2list("Perturbation_Data/CREEDS/single_drug_perturbations-DrugMatrix.gmt")
+  # Import CREEDS_DrugMatrix metadata
+  CREEDS_DrugMatrix_meta <- read.csv("Perturbation_Data/CREEDS/single_drug_perturbations-DrugMatrix.csv")
+```
+
+## [2.A]... / DrugBank.TargetCentral + kinome
+```{r}
+#********** Import combined Drugbank + Target Central drug target list **********#
+DrugBank.TargetCentral <- DrugBank.TargetCentral_orig <- read.csv("Drug-Target_Data/11-17-17_WithDrugBankIDs/3_Union_EdgeList_v1_11-17-17.csv")
+  # Include only kinases using Kinome database *******
+    kinome_filter <- DrugBank.TargetCentral$TargetID_Entrez %in% kinome$Entrez_GeneID
+    DrugBank.TargetCentral <- DrugBank.TargetCentral[kinome_filter,]
+    
+  
+# [A] DrugBank-TargetCentral filter
+  # Filter the CREEDS metadata to just the drugs we have targets for
+  DB.TC_filter <-CREEDS_DrugMatrix_meta$drugbank_id %in% DrugBank.TargetCentral$DrugID_DrugBank
+  CREEDS_meta.filter <- CREEDS_DrugMatrix_meta[DB.TC_filter,]
+  remodified_names <- c(paste(CREEDS_meta.filter$drug_name,"-dn",sep=""),
+                        paste(CREEDS_meta.filter$drug_name,"-up",sep="") )
+  
+# Filter CREEDS data
+CREEDS_DrugMatrix_DB.TC <-subset_GMT(CREEDS_DrugMatrix, remodified_names)
+length(CREEDS_DrugMatrix_DB.TC)
+# Write filtered list to GMT file
+dir = "Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_DrugMatrix_DG.TC_filtered.gmt"
+if(file.exists(dir)){file.remove(dir) } else{print("Doesn't exist")}
+gmtlist2file(CREEDS_manualDrugs_DRH, dir)  
+```
+
+## [2.B] ... / Drug Repurposing Hub
+```{r}
+#********** Import combined Drug Repurposing Hub target list **********#
+DrugRepurposingHub <-read.table("Drug-Target_Data/Drug Repurposing Hub/Repurposing_Hub_export.txt", 
+                                  header=T, sep="\t", fill = T)
+  # Get rid of any drugs that don't have targets
+  DrugRepurposingHub <- subset(DrugRepurposingHub, Target!="") 
+  
+  
+# [B] Drug Repurposing Hub filter
+  DRH_filter <-CREEDS_DrugMatrix_meta$smiles %in% DrugRepurposingHub$SMILES
+  CREEDS_meta.filter <- CREEDS_DrugMatrix_meta[DRH_filter,]
+  remodified_names <- c(paste(CREEDS_meta.filter$drug_name,"-dn",sep=""),
+                        paste(CREEDS_meta.filter$drug_name,"-up",sep="") )
+  
+# Filter CREEDS data
+CREEDS_DrugMatrix_DRH <-subset_GMT(CREEDS_DrugMatrix, remodified_names)
+length(CREEDS_DrugMatrix_DRH)
+
+# Write filtered list to GMT file
+dir = "Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_DrugMatrix_DRH_filtered.gmt"
+if(file.exists(dir)){file.remove(dir) } else{print("Doesn't exist")}
+gmtlist2file(CREEDS_manualDrugs_DRH, dir)  
+```
+
+
+
+## [Dataset 3] DrugBank_Moshe / kinome
+* The DrugBank targets (under the Mechanisms of Action section) are collected from many different sources (Wikipedia, PubChem, KEGG, etc.), not exclusively drug perturbation data. Consequently, DrugBank data could be very noisy compared to a controlled drug perturbation dataset.
+
+```{r}
+#********** Import combined Drugbank drug target list **********#
+DrugBank <- gmt2list("Perturbation_Data/DrugBank/drugbank_gene_set_2017_11.gmt")
+  
+# Link to DrugBank's metadata provided on their website
+    #drugbank_vocab <-read.csv("Drug-Target_Data/drugbank vocabulary.csv")
+  # Add info in drugbank_vocab to Moshe's DrugBank data
+  #drugbank_vocab.filt <-drugbank_vocab[drugbank_vocab$Common.name %in% names(DrugBank), ]
+  #DBoverlap_names <- drugbank_vocab.filt$Common.name
+# Subset Drugbank file by 
+ #DrugBank <-subset_GMT(DrugBank, DBoverlap_names)
+  
+# Subset to only drugs that have kinase targets
+DrugBank_kinome <- GMT_kinome_filter(DrugBank, kinome)
+  length(DrugBank_kinome)
+  
+# Write filtered GMT
+dir = "Perturbation_Data/DrugBank/DrugBank_mechanisms.gmt"
+if(file.exists(dir)){file.remove(dir) } else{print("Doesn't exist")}
+gmtlist2file(CREEDS_manualDrugs_DRH, dir)  
+```
+
+
+
+
+# [Dataset 4] CREEDS_ManualGenes / kinome
+```{r}
+CREEDS_ManualGenes <- gmt2list("Perturbation_Data/CREEDS/single_gene_perturbations-v1.0.gmt")
+CREEDS_ManualGenes_meta <- read.csv("Perturbation_Data/CREEDS/single_gene_perturbations-p1.0_metadata.csv")
+
+# Filter to only kinase perturbations (same number of rows with either method)
+## [Method 1: USING KINOME DATABASE]
+## ****INCLUDE ROWS WITH KINASES IN RESPONSE AS WELL??
+  creeds_genes <-substr(names(CREEDS_ManualGenes), 1 ,nchar(names(CREEDS_ManualGenes))-3)
+  kinome_genes.filter <-toupper(creeds_genes) %in% toupper(kinome$Name)
+  CREEDS_ManualGenes_kinome <-CREEDS_ManualGenes[kinome_genes.filter]
+
+## [METHOD 2: USING CREEDS METADATA] CAN'T FILTER THIS WAY BC THEY DON'T SYSTEMATICALLY INCLUDE GENE SYMBOL IN THE METADATA....
+  #kinome_genes.filter <-CREEDS_ManualGenes_meta[ grep("kinase",          
+  #CREEDS_ManualGenes_meta$hs_gene_symbol), ] 
+  #CREEDS_ManualGenes_kinome <-subset_GMT(CREEDS_ManualGenes, kinome_genes.filter$)
+
+length(CREEDS_ManualGenes_kinome)
+# Write filtered GMT
+dir = "Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_ManualGenes_kinases.gmt"
+if(file.exists(dir)){file.remove(dir) } else{print("Doesn't exist")}
+gmtlist2file(CREEDS_ManualGenes_kinome, dir)  
+```
+
+## Kinase distribution metrics
+```{r, fig.width=9, fig.height=9}
+## Individual kinase frequecies
+library(ggplot2)
+# By Gene
+perturbed_kinases <-substr(names(CREEDS_ManualGenes_kinome),
+                           1 ,nchar(names(CREEDS_ManualGenes_kinome))-3)
+kinase.table <- data.frame(Kinases = as.data.frame(table(perturbed_kinases))[,1],
+                                Frequency = as.data.frame(table(perturbed_kinases))[,2]) 
+ggplot(data=kinase.table, aes(x=Kinases,y=Frequency, fill = Kinases) ) + 
+  geom_bar(stat="identity") + coord_polar(theta="x") + theme(legend.position="none") + labs(title="Kinase Frequencies: Gene-level")
+```
+```{r}
+# By Group
+Group <-kinome[kinome$Name %in% perturbed_kinases,]$Group
+kinase.table <- data.frame(Group = as.data.frame(table(Group))[,1],
+                                Frequency = as.data.frame(table(Group))[,2]) 
+ggplot(data=kinase.table, aes(x=Group,y=Frequency, fill = Group) ) + 
+  geom_bar(stat="identity", color="white") + coord_polar(theta="x") + labs(title="Kinase Frequencies: Group-level")
+```
+```{r}
+# By Family
+Family <-kinome[kinome$Name %in% perturbed_kinases,]$Family
+kinase.table <- data.frame(Family = as.data.frame(table(Family))[,1],
+                                Frequency = as.data.frame(table(Family))[,2]) 
+ggplot(data=kinase.table, aes(x=Family,y=Frequency, fill = Family) ) + 
+  geom_bar(stat="identity", color="white") + coord_polar(theta="x") + labs(title="Kinase Frequencies: Family-level")
+```
+## t-SNE plots
+```{r}
+
+```
+
+# [Dataset 5] GEO_KinasePerturbations
+```{r}
+# Kinase perturbations from GEO (found on ENRICHR)
+GEO_KinasePert.up <-gmt2list("Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt")
+GEO_KinasePert.dn <-gmt2list("Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_down.gmt")
+
+length(GEO_KinasePert.dn); length(GEO_KinasePert.up)
+```
+
+# [Datset 6] LINCS1000 CD Signatures
+```{r}
+library(mongolite)
+
+```
+
+
+
+# Summaries
+```{r, echo=F}
+print("*****************SINGLE DRUG PERTURBATIONS*****************")
+
+# CREEDS_single_drug_perturbations / DrugBank.TargetCentral + kinome
+print(paste("# of CREEDS_manualDrugs rows =", length(CREEDS.ManualDrugs) ))
+print(paste("# of CREEDS_manualDrugs rows, that have kinase targets, and are in DrugBank.TargetCentral list = ",length(CREEDS_manualDrugs_DB.TC)))
+# CREEDS_single_drug_perturbations / DrugRepurposingHub + kinome
+print(paste("# of CREEDS_manualDrugs rows =", length(CREEDS.ManualDrugs) ))
+print(paste("# of CREEDS_manualDrugs rows, that have kinase targets and are in DrugRepurposingHub list = ",length(CREEDS_manualDrugs_DRH)))
+
+# CREEDS_DrugMatrix / DrugBank.TargetCentral + kinome
+print(paste("# of CREEDS_DrugMatrix rows =", length(CREEDS_DrugMatrix) ))
+print(paste("# of CREEDS_manualDrugs rows, that have kinase targets,03 and are in DrugBank.TargetCentral list = ",length(CREEDS_DrugMatrix_DB.TC)))
+# CREEDS_DrugMatrix / DrugRepurposingHub + kinome
+print(paste("# of CREEDS_DrugMatrix rows =", length(CREEDS_DrugMatrix) ))
+print(paste("# of CREEDS_DrugMatrix rows, that have kinase targets, and are in DrugRepurposingHub list = ",length(CREEDS_DrugMatrix_DRH)))
+
+# DrugBank_mechanisms / kinome
+print(paste("# of DrugBank (Moshe) rows =", length(DrugBank) ))
+print(paste("# of DrugBank (Moshe) rows, that have kinase mechanisms in DrugBank = ",length(DrugBank_kinome)))
+
+
+
+print("*****************SINGLE GENE PERTURBATIONS*****************")
+# CREEDS_ManualGenes filtered by kinases
+print(paste("# of CREEDS_ManualGenes rows =", length(CREEDS_ManualGenes)))
+print(paste("# of CREEDS_ManualGenes rows, that ARE kinases =", length(CREEDS_ManualGenes_kinome)))
+#GEO_KinasePerturbations
+print(paste("# of GEO_KinasePerturbation rows (up/down) =", length(GEO_KinasePert.dn)*2))
+
+
+```
+
+
