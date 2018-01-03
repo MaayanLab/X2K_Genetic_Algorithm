@@ -15,7 +15,7 @@ output: html_document
 
 # Load packages & Subset GMT functions
 ```{r}
-setwd("~/Dropbox/Maayan_Lab/X2K/4) Validation_datasets/")
+setwd("~/Desktop/x2k/Validation/")
 library(cogena)
 
 subset_GMT <- function(GMTfile, subset_names){
@@ -39,7 +39,7 @@ subset_GMT <- function(GMTfile, subset_names){
 
 # Include only kinases using Kinome database *******
 library(readxl)
-kinome <- read_excel("Drug-Target_Data/Kinome_Hsap.xls")
+kinome <- read_excel("~/Desktop/x2k/General_Resources/Kinase.com/Kinome_Hsap.xls")
    
  GMT_kinome_filter <- function(GMTfile, kinome){
    booleans <-logical(0)
@@ -95,8 +95,9 @@ DrugBank.TargetCentral <- DrugBank.TargetCentral_orig <- read.csv("Drug-Target_D
 CREEDS_manualDrugs_DB.TC <-subset_GMT(CREEDS.ManualDrugs, remodified_names)
 length(CREEDS_manualDrugs_DB.TC)
 # Write filtered list to GMT file
-file.remove("Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_DG.TC_filtered.gmt")
-gmtlist2file(CREEDS_manualDrugs_DB.TC, "Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_Manual.Drugs_DG.TC_filtered.gmt")    
+dir="Perturbation_Data/CREEDS/Filtered_GMTs/CREEDS_Manual.Drugs_DG.TC_filtered.gmt"
+if(file.exists(dir)){file.remove(dir) } else{print("Doesn't exist")}
+gmtlist2file(CREEDS_manualDrugs_DB.TC, dir)    
 ```
 
 ## [1.B] ... / Drug Repurposing Hub
