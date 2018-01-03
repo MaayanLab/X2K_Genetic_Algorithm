@@ -206,7 +206,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8)):
         row_num = i+3 # Skip the first 3 rows since the other plot is occupying that space
         tab1 = freqTable(data, parameter)
         # Set palette
-        sns.set_palette(sns.color_palette("BuPu", len(tab1.columns)))  # BuPu
+        sns.set_palette(sns.color_palette("BuPu", len(tab1.columns)))  # Run this BEFORE you create your subplot
         # Turn ax string into variable
         new_ax = 'ax' + str(row_num)
         exec(new_ax + " = plt.subplot2grid((nrows, 1), (row_num, 0))")
