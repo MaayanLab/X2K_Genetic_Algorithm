@@ -108,7 +108,6 @@ def parameterDF(GAresults):
     # Compile parameters into dataframe
     ## Initialize lists
     chea_sort = []
-    kea_sort = []
     chea_species = []
     chea_databases = []
     chea_background = []
