@@ -1,15 +1,34 @@
+#RUIIUSNUFSDF TESTrer
+
 directory = "/Users/Schilder/Desktop/x2k/"
 
-# # Delete .DS_Store files
-import os
-print("Deleting.......")
-for root, dirs, files in os.walk(os.getcwd()):
-    for file in files:
-        if file.endswith(".DS_Store"):
-            print(os.path.join(root, file))
-            os.remove( os.path.join(root, file) )
+# Filter GEO kinase perturbation data
+## 1. By simply stripping the 1.0 after each gene
+import re
+with open(directory+"Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt") as GEO_up,\
+        open(directory+"Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up_noVals.txt","w") as noVals_up,\
+        open(directory+"Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_down.gmt") as GEO_dn,\
+        open(directory+"Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_dn_noVals.txt","w") as noVals_dn:
+    for line in GEO_up:
+        splitLine = re.split(r'\t+', line)
+        experiment = splitLine[0]
+        genes = splitLine[1:-1]
+        editedGenes=[]
+        for gene in genes:
+            editedGenes.append(gene.strip(",1.0"))
+        noVals_up.write(experiment+"\t\t"+"\t".join(editedGenes)+"\n")
+    for line in GEO_dn:
+        splitLine = re.split(r'\t+', line)
+        experiment = splitLine[0]
+        genes = splitLine[1:-1]
+        editedGenes=[]
+        for gene in genes:
+            editedGenes.append(gene.strip(",1.0"))
+        noVals_dn.write(experiment+"\t\t"+"\t".join(editedGenes)+"\n")
 
-# Filter kinase perturbation data
+
+
+## 1. By matching perturbation types with up/dn files
 import re
 with open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_COMBINED.txt") as kinase_pert_combo, \
         open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_FILTERED.txt","w") as filteredFile:
@@ -30,16 +49,88 @@ with open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_fro
     filteredFile.close()
 
 
+
+
+
+directory = "/Users/Schilder/Desktop/x2k/"
 # Subset testgmt file for overfitting test
-with open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_FILTERED.txt") as testgmt,\
-    open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.txt","w") as subset1,\
-    open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.txt","w") as subset2:
-    count = 1
-    for line in testgmt:
-        if count <= 130:
-            subset1.write(line)
-        if count > 130:
-            subset2.write(line)
-        count += 1
+def split_testgmt(testPercent, input, output1, output2, writeType="w", up_dn="dn"):
+    with open(directory + "Validation/Perturbation_Data/"+input) as testgmt,\
+        open(directory + "Validation/Perturbation_Data/"+output1, writeType) as subset1,\
+        open(directory + "Validation/Perturbation_Data/"+output2, writeType) as subset2:
+        testgmtLines = testgmt.readlines()
+        division = round(len(testgmtLines)*testPercent/100)
+        count = 1
+        for line in testgmtLines:
+            if count <= division:
+                newLine = line.split("\t")
+                newLine[0] = newLine[0]+"_"+up_dn
+                subset1.write("\t".join(newLine))
+            if count > division:
+                newLine = line.split("\t")
+                newLine[0] = newLine[0]+"_"+up_dn
+                subset2.write("\t".join(newLine))
+            count += 1
 
 
+# Split GEO gene pert data and then combine up/dn files
+split_testgmt(testPercent=80, \
+              input="GEO/Kinase_Perturbations_from_GEO_up_noVals.txt", \
+              output1="GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", \
+              output2="GEO/Kinase_Perturbations_from_GEO_SUBSET.20per.txt", \
+              up_dn="up")
+split_testgmt(testPercent=80, \
+              input="GEO/Kinase_Perturbations_from_GEO_up_noVals.txt", \
+              output1="GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", \
+              output2="GEO/Kinase_Perturbations_from_GEO_SUBSET.20per.txt", \
+              up_dn="dn", writeType="a")
+
+
+# Split LINCS L1000 chem pert data and then combine up/dn files
+split_testgmt(testPercent=80,\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInihibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              up_dn="up")
+split_testgmt(testPercent=80,\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              up_dn="dn", writeType="a")
+
+
+directory = "/Users/Schilder/Desktop/x2k/"
+
+# Mix up and down, then write to new file, then get top n lines (to limit computational load on GA)
+def reduced_split_testgmt(testPercent, input, output1, output2, writeType="w", up_dn="dn"):
+    with open(directory + "Validation/Perturbation_Data/"+input) as testgmt,\
+        open(directory + "Validation/Perturbation_Data/"+output1, writeType) as subset1,\
+        open(directory + "Validation/Perturbation_Data/"+output2, writeType) as subset2:
+        testgmtLines = testgmt.readlines()
+        #division = round(len(testgmtLines)*testPercent/100)
+        division = round((570*.80)/2)
+        count = 1
+
+        for line in testgmtLines:
+            if count <= division:
+                newLine = line.split("\t")
+                newLine[0] = newLine[0]+"_"+up_dn
+                subset1.write("\t".join(newLine))
+            if count > division:
+                newLine = line.split("\t")
+                newLine[0] = newLine[0]+"_"+up_dn
+                subset2.write("\t".join(newLine))
+            count += 1
+
+directory = "/home/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/" # Change to your directory
+
+reduced_split_testgmt(testPercent=80,\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInihibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              up_dn="up")
+reduced_split_testgmt(testPercent=80,\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              up_dn="dn", writeType="a")
