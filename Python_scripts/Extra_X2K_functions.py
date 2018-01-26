@@ -1,53 +1,53 @@
+
 # Tells you the parameters for a given binary string
 def tell_parameters(binary, verbose=True):
     # Readjust bit parameters if length of binary string changes
-    bit_dict = {"CHEA_sort":binary[0:2],
-                "CHEA_species":binary[2:4],
-                "CHEA_databases":binary[4:6],
-                "CHEA_background":binary[6:8],
-                "CHEA_topTFs":binary[8:10],
-                "G2N_databases":binary[10:20],
-                "G2N_pathLength":binary[20:21],
-                "KEA_sort":binary[21:23],
-                "KEA_interactome":binary[23:25],
-                "KEA_background":binary[25:27]
+    bit_dict = {"TF_sort":binary[0:2],
+                "TF_species":binary[2:4],
+                "TF_databases":binary[4:6],
+                "TF_background":binary[6:8],
+                "TF_topTFs":binary[8:10],
+                "PPI_databases":binary[10:20],
+                "PPI_pathLength":binary[20:21],
+                "KINASE_sort":binary[21:23],
+                "KINASE_interactome":binary[23:25],
+                "KINASE_background":binary[25:27]
                 }
-    KEA_topKinases = 10 # Should be consistent for every individual
+    KINASE_topKinases = 20 # Should be consistent for every individual
 
     # CHEA OPTIONS ############
-    ## sort
-    CHEA_sort = {"10":"oddsratio", "01":"combined_score", "11":"rank", "00":"RESHUFFLE"}
-    CHEA_species = {"10":"human", "01":"mouse", "11":"both", "00":"RESHUFFLE"}
-    CHEA_databases = {"10":"chea", "01":"transfac", "11":"both", "00":"RESHUFFLE"}
-    CHEA_background = {"10":"humanarchs4", "01":"mousearchs4", "11":"hg133", "00":"RESHUFFLE"}
-    CHEA_topTFs = {"10":5, "01":10, "11":20, "00":"RESHUFFLE"}
+    TF_sort = {"10":"oddsratio", "01":"combined_score", "11":"rank", "00":"pvalue"}
+    TF_species = {"10":"human", "01":"mouse", "11":"both", "00":"RESHUFFLE"}
+    TF_databases = {"10":"chea", "01":"transfac", "11":"both", "00":"RESHUFFLE"}
+    TF_background = {"10":"humanarchs4", "01":"humanarchs4", "11":"humanarchs4", "00":"RESHUFFLE"}
+    TF_topTFs = {"10":5, "01":10, "11":20, "00":"RESHUFFLE"}
 
     # G2N OPTIONS ############
     ## Databases
-    all_G2N_databases = ["BIND","BIOCARTA","BIOGRID","DIP","FIGEYS","HPRD","INNATEDB","INTACT","KEA","KEGG","MINT","MIPS","MURPHY","PDZBASE","PPID","PREDICTEDPPI","SNAVI","STELZL","VIDAL","HUMAP"]
-    G2N_dbs = []
-    G2N_string = bit_dict["G2N_databases"]
+    all_PPI_databases = ["BIND","BIOCARTA","BIOGRID","DIP","FIGEYS","HPRD","INNATEDB","INTACT","KEA","KEGG","MINT","MIPS","MURPHY","PDZBASE","PPID","PREDICTEDPPI","SNAVI","STELZL","VIDAL","HUMAP"]
+    PPI_dbs = []
+    PPI_string = bit_dict["PPI_databases"]
     ### If no database selected, select at least one
     from random import randint
-    if sum(map(int, G2N_string)) == 0:
-        g2n_list = list(G2N_string)
-        g2n_list[randint(0, (len(g2n_list)) - 1)] = '1'
-        bit_dict["G2N_databases"] = "".join(g2n_list)
+    if sum(map(int, PPI_string)) == 0:
+        ppi_list = list(PPI_string)
+        ppi_list[randint(0, (len(ppi_list)) - 1)] = '1'
+        bit_dict["PPI_databases"] = "".join(ppi_list)
     ### Generate list of G2N databases
-    for ind,bit in enumerate(G2N_string):
+    for ind,bit in enumerate(PPI_string):
         if bit == "1":
-            G2N_dbs.append( all_G2N_databases[ind] )
-    G2N_databases = ",".join(G2N_dbs)
+            PPI_dbs.append( all_PPI_databases[ind] )
+    PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    G2N_pathLength = {"0":1, "1":2}
+    PPI_pathLength = {"0":1, "1":2}
 
 
     ############ KEA OPTIONS ############
-    KEA_sort = {"10":"oddsratio", "01":"combined_score", "11":"rank", "00":"RESHUFFLE"}
-    KEA_interactome = {"10":"KP", "01":"P", "11":"RESHUFFLE", "00":"RESHUFFLE"}
-    KEA_background = {"10":"humanarchs4", "01":"mousearchs4", "11":"hg133", "00":"RESHUFFLE"}
+    KINASE_sort = {"10":"oddsratio", "01":"combined_score", "11":"rank", "00":"pvalue"}
+    KINASE_interactome = {"10":"KP", "01":"P", "11":"RESHUFFLE", "00":"RESHUFFLE"}
+    KINASE_background = {"10":"humanarchs4", "01":"humanarchs4", "11":"humanarchs4", "00":"RESHUFFLE"}
 
-    parametersList = ["CHEA_sort","CHEA_species","CHEA_databases","CHEA_background", "CHEA_topTFs", "G2N_pathLength", "KEA_sort", "KEA_interactome", "KEA_background"] #g2n_databases
+    parametersList = ["TF_sort","TF_species","TF_databases","TF_background", "TF_topTFs", "PPI_pathLength", "KINASE_sort", "KINASE_interactome", "KINASE_background"]
     from random import choice
     # RESHUFFLE any bits that aren't legitimate options
     for param in parametersList:
@@ -58,22 +58,22 @@ def tell_parameters(binary, verbose=True):
             bit_dict[param] = choice( good_bits )
             #print("Reshuffling...")
     # Tell X2K parameters
-    chea_params = ';'.join( ["run", CHEA_sort[bit_dict["CHEA_sort"]], CHEA_species[bit_dict["CHEA_species"]], CHEA_databases[bit_dict["CHEA_databases"]], CHEA_background[bit_dict["CHEA_background"]], str(CHEA_topTFs[bit_dict["CHEA_topTFs"]]) ] )
-    g2n_params = ';'.join(["run",G2N_databases, str(G2N_pathLength[bit_dict["G2N_pathLength"]]) ])
-    kea_params = ';'.join(["run", KEA_sort[bit_dict["KEA_sort"]], KEA_background[bit_dict["KEA_background"]], KEA_interactome[bit_dict["KEA_interactome"]], str(KEA_topKinases)  ])
+    TF_params = ';'.join( ["run", TF_sort[bit_dict["TF_sort"]], TF_species[bit_dict["TF_species"]], TF_databases[bit_dict["TF_databases"]], TF_background[bit_dict["TF_background"]], str(TF_topTFs[bit_dict["TF_topTFs"]]) ] )
+    PPI_params = ';'.join(["run",PPI_databases, str(PPI_pathLength[bit_dict["PPI_pathLength"]]) ])
+    KINASE_params = ';'.join(["run", KINASE_sort[bit_dict["KINASE_sort"]], KINASE_background[bit_dict["KINASE_background"]], KINASE_interactome[bit_dict["KINASE_interactome"]], str(KINASE_topKinases)  ])
     if(verbose==True):
         print()
-        print( "___CHEA Parameters___")
-        print(chea_params)
+        print( "___TF (CHEA) Parameters___")
+        print(TF_params)
         print()
-        print( "___G2N Parameters___")
-        print(g2n_params)
+        print( "___PPI (G2N) Parameters___")
+        print(PPI_params)
         print()
-        print( "___KEA Parameters___")
-        print(kea_params)
+        print( "___KINASE (KEA) Parameters___")
+        print(KINASE_params)
         print()
 
-    return chea_params, g2n_params, kea_params
+    return TF_params, PPI_params, KINASE_params
 
 
 
@@ -88,6 +88,7 @@ def getFittestIndividual(GAresults):
 #     #tell_parameters(getFittestIndividual(GAresults))
 
 
+
 # Create a dataframe the fitness and parameters of every individual from every generation
 def parameterDF(GAresults):
     # Get all individuals in one long list
@@ -98,67 +99,77 @@ def parameterDF(GAresults):
     # Get all fitness scores in one long list
     superFitnesses = []
     Generation = []
-    generation = 0
+    generation = 1
     for sublist in GAresults[1]:
         for item in sublist:
             superFitnesses.append(item)
             Generation.append(generation)
         generation += 1
+    # Get all average_PPI_sizes
+    average_PPI_size = []
+    for sublist in GAresults[5]:
+        for item in sublist:
+            average_PPI_size.append(item)
+
 
     # Compile parameters into dataframe
     ## Initialize lists
-    chea_sort = []
-    chea_species = []
-    chea_databases = []
-    chea_background = []
-    chea_topTFs = []
-    g2n_databases = []
-    g2n_pathLength = []
-    kea_sort = []
-    kea_background = []
-    kea_interactome = []
-    kea_topKinases = []
+    tf_sort = []
+    tf_species = []
+    tf_databases = []
+    tf_background = []
+    tf_topTFs = []
+    ppi_databases = []
+    ppi_pathLength = []
+    kinase_sort = []
+    kinase_background = []
+    kinase_interactome = []
+    kinase_topKinases = []
     for individual in superPopulation:
         params = tell_parameters(individual, verbose=False)
         ## CHEA
-        chea_params = params[0].split(";")
-        chea_sort.append(chea_params[1])
-        chea_species.append(chea_params[2])
-        chea_databases.append(chea_params[3])
-        chea_background.append(chea_params[4])
-        chea_topTFs.append(chea_params[5])
+        tf_params = params[0].split(";")
+        tf_sort.append(tf_params[1])
+        tf_species.append(tf_params[2])
+        tf_databases.append(tf_params[3])
+        tf_background.append(tf_params[4])
+        tf_topTFs.append(tf_params[5])
         ## G2N
-        g2n_params = params[1].split(";")
-        g2n_databases.append(g2n_params[1])
-        g2n_pathLength.append(g2n_params[2])
+        ppi_params = params[1].split(";")
+        ppi_databases.append(ppi_params[1])
+        ppi_pathLength.append(ppi_params[2])
         ## KEA
-        kea_params = params[2].split(";")
-        kea_sort.append(kea_params[1])
-        kea_background.append(kea_params[2])
-        kea_interactome.append(kea_params[3])
-        kea_topKinases.append(kea_params[4])
+        kinase_params = params[2].split(";")
+        kinase_sort.append(kinase_params[1])
+        kinase_background.append(kinase_params[2])
+        kinase_interactome.append(kinase_params[3])
+        kinase_topKinases.append(kinase_params[4])
     # Turn lists into dictionary
     import pandas as pd
     #ind = list(range(1,len(superPopulation)+1))
     d = {'Binary':superPopulation,
          'Fitness':pd.Series(superFitnesses),
          'Generation':pd.Series(Generation),
-         'chea_sort' :pd.Categorical(chea_sort),
-         'chea_species':pd.Categorical(chea_species),
-         'chea_databases':pd.Categorical(chea_databases),
-         'chea_background':pd.Categorical(chea_background),
-         'chea_topTFs':pd.Categorical(chea_topTFs),
-         'g2n_databases':pd.Categorical(g2n_databases),
-         'g2n_pathLength':pd.Categorical(g2n_pathLength),
-         'kea_sort':pd.Categorical(kea_sort),
-         'kea_background':pd.Categorical(kea_background),
-         'kea_interactome':pd.Categorical(kea_interactome),
-         'kea_topKinases':pd.Categorical(kea_topKinases)}
+         'TF_sort' :pd.Categorical(tf_sort),
+         'TF_species':pd.Categorical(tf_species),
+         'TF_databases':pd.Categorical(tf_databases),
+         'TF_background':pd.Categorical(tf_background),
+         'TF_topTFs':pd.Categorical(tf_topTFs),
+         'PPI_databases':pd.Categorical(ppi_databases),
+         'PPI_pathLength':pd.Categorical(ppi_pathLength),
+         'KINASE_sort':pd.Categorical(kinase_sort),
+         'KINASE_background':pd.Categorical(kinase_background),
+         'KINASE_interactome':pd.Categorical(kinase_interactome),
+         'KINASE_topKinases':pd.Categorical(kinase_topKinases),
+         'Average_PPI_size':pd.Series(average_PPI_size)
+         }
     # Turn dictionary into dataframe
     df = pd.DataFrame(d)
     #print(df[:5]) # preview
     return df
 # data = parameterDF(GAresults)
+
+
 
 # Create frequency table of parameters for each generation
 def freqTable(data, parameter):
@@ -168,41 +179,65 @@ def freqTable(data, parameter):
     return tab
 
 
-import numpy as np
-GA = np.load("GA_Results/GA_results.npy")
-GAresults = GA[0]
+# import numpy as np
+# GA = np.load("GA_Results/GA_results.100pop.50gen.3sortOptions.npy")
+# GAresults = GA[0]
+
 
 # Make super awesome plot showing evolution of parameter distribution over generations/time
-def parameterEvolutionPlot(GAresults, figsize=(24,8)):
+def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     data = parameterDF(GAresults)
     import matplotlib.pyplot as plt
+    #import matplotlib as mpl
     import pandas as pd
+    import numpy as np
+    # Setup dimension vars
+    parameters = sorted(list(data.columns[4:]), reverse=True)  # Flip around to make plot same order as pipeline E
+    # Remove specific parameters
+    parameters = [x for x in parameters if x != 'TF_background'] # Remove specific parameter
+    parameters = [x for x in parameters if x != 'KINASE_background']  # Remove specific parameter
+    parameters = [x for x in parameters if x != 'KINASE_topKinases']  # Remove specific parameter
+    param_num = len(parameters)
+    fitness_rows = 5
+    PPI_size_rows = 2
+    nrows = fitness_rows+PPI_size_rows+param_num+2
+    padRight=.6; padLeft=.2
     # Setup Fitness data
     Fitness_avg = data[['Fitness', 'Generation']].groupby('Generation').mean()
     PeakFits = pd.DataFrame({'Fitness_peak': pd.Series(GAresults[3], list(range(1, len(pd.Series(GAresults[3])) + 1)))})
     Fitness_both = pd.concat([Fitness_avg, PeakFits], axis=1)
-    # Setup dimension vars
-    parameters = list(data.columns[3:])
-    param_num = len(parameters)
-    fitness_rows = 4
-    nrows = param_num + fitness_rows
-
     # Fitness plot
-    ax1 = plt.subplot2grid((nrows, 1), (0, fitness_rows), facecolor='whitesmoke')
+    ax1 = plt.subplot2grid((nrows, 1), (0, 0), facecolor='whitesmoke', rowspan=fitness_rows)
     plt.gcf().set_facecolor('white')  # Change plot border background color
-    ax1.plot(Fitness_both.index, Fitness_both['Fitness'], 'b|-', Fitness_both.index, Fitness_both['Fitness_peak'], 'g.--')
-
-    plt.title('Fitness Over Generations')
-    plt.xlabel('Generation')
-    plt.ylabel('Fitness')
+    ax1.plot(Fitness_both.index, Fitness_both['Fitness'], 'blue', linestyle='-', marker='.', markersize=2)
+    ax1.plot(Fitness_both.index, Fitness_both['Fitness_peak'], 'purple', linestyle='-', marker='^', markersize=2)
+    plt.title('Fitness Over Generations', fontsize=20)
+    plt.xlabel('Generation', fontsize=12)
+    plt.ylabel('Fitness', fontsize=12)
+    plt.tick_params(axis='x', labelsize=12)
     plt.legend(('Average Fitness', 'Peak Fitness'), loc='lower right')
-    plt.ylim([0, 50])
-    plt.xlim([1, 50])
-    plt.subplots_adjust(right=0.5, left=0.1)
+    plt.ylim([0, max(data['Fitness'])+5])
+    plt.xlim([1, max(data['Generation'])])
+    plt.axhline(y=chance, linestyle="-.", color='r', label="Chance levels")
+    plt.subplots_adjust(right=padRight, left=padLeft)
+    plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=70)  # bbox_to_anchor=(horizontal, vertical)
+
+
+    # Setup PPI size data
+    PPI_dat = data[['Average_PPI_size', 'Generation']].groupby('Generation').mean()
+    # PPI Size plot
+    ax2 = plt.subplot2grid((nrows, 1), ((fitness_rows+PPI_size_rows), 0), facecolor='whitesmoke', rowspan=PPI_size_rows)
+    ax2.plot(PPI_dat.index, PPI_dat, 'firebrick')
+    plt.xlim([1, max(data['Generation'])])
+    plt.ylabel('PPI Size', rotation=0, labelpad=50, fontsize=12)
+    plt.tick_params(axis='x', labelbottom='off')
+    plt.tick_params(axis='y', labelsize=7)
+    plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
+
     # Parameter plots
     import seaborn as sns
     for i,parameter in enumerate(parameters):
-        row_num = i+3 # Skip the first 3 rows since the other plot is occupying that space
+        row_num = i+(fitness_rows+PPI_size_rows)+2 # Skip the first 3 rows since the other plot is occupying that space
         tab1 = freqTable(data, parameter)
         # Set palette
         sns.set_palette(sns.color_palette("BuPu", len(tab1.columns)))  # Run this BEFORE you create your subplot
@@ -213,37 +248,76 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8)):
         tab1.plot(kind='area', ax=eval(new_ax), stacked=True, figsize=figsize)  # , colors=['hotpink','slateblue','navy']
         plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=70)  # bbox_to_anchor=(horizontal, vertical)
         plt.xticks(rotation=0)
+        plt.tick_params(axis='y', labelsize=7)
+        plt.tick_params(axis='x', labelsize=12)
         plt.xlabel('')
-        plt.ylabel(parameter, rotation=0, labelpad=50)
-        plt.xlim([1, 50])
-        plt.subplots_adjust(right=0.5, left=0.1)  # Expand plot area to get more of legends in view
-        if i != 10: # Turn of xtick labels for all but bottom plot
+        plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
+        plt.xlim([1, max(data['Generation'])])
+        plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
+        if i != param_num-1: # Turn of xtick labels for all but bottom plot
             plt.tick_params(axis='x', labelbottom='off')
 
-# parameterEvolutionPlot(GAresults)
+# parameterEvolutionPlot(GAresults_Subset1)
+#
+# def ParameterBoxplots(GAresults):
+#     import pandas as pd
+#     data = parameterDF(GAresults)
+#     for parameter in data.columns[3:]:
+#         pd.DataFrame.boxplot(data, 'Fitness', parameter)
+#
+# def fitnessHistogramCurves(allFitnesses, gen_spacing=10):
+#     from scipy.stats import norm
+#     import matplotlib.mlab as mlab
+#     import matplotlib.pyplot as plt
+#     from matplotlib.pyplot import cm
+#     which_gens = [0] + list(range(-1, len(allFitnesses)+1))[0::gen_spacing][1:]
+#
+#     color = cm.rainbow(np.linspace(0, 1, len(which_gens)))
+#
+#     for i,gen in enumerate(which_gens):
+#         # LINE METHOD
+#         datos=allFitnesses[gen-1]
+#         # best fit of data
+#         (mu, sigma) = norm.fit(datos)
+#         # the histogram of the data
+#         n, bins, patches = plt.hist(datos, 5, normed=1, facecolor=color[i], alpha=0.75) # Make the histogram bar invisible by coloring white
+#         # add a 'best fit' line
+#         y = mlab.normpdf(bins, mu, sigma)
+#         l = plt.plot(bins, y, color[i], linewidth=1)
+#         # plot
+#         plt.xlabel('Generation')
+#         plt.ylabel('Frequency')
+#         plt.title('Distribution of All Fitnesses: Every %.0f Generations' % (gen_spacing))
+#         plt.grid(True)
+#         plt.show()
+#
+#     for i gen in enumerate(which_gens):
+#         #MORIGINAL METHOD
+#         plt.hist(allFitnesses[0], bins=20, color=color[i])  # 1st
+#
+#
 
-def ParameterBoxplots(GAresults):
-    import pandas as pd
-    data = parameterDF(GAresults)
-    for parameter in data.columns[3:]:
-        pd.DataFrame.boxplot(data, 'Fitness', parameter)
+
 
 
 def parameterStats(GAresults, write_Excel=False):
     import pandas as pd
+    import statsmodels.api as sm
+    from statsmodels.formula.api import ols
     data = parameterDF(GAresults)
     frames = []
-    tested_parameters = list(data.columns[3:][:-1]) # Test which parameters to run through ANOVA
+    tested_parameters = list(data.columns[4:][:-1]) # Test which parameters to run through ANOVA
+    tested_parameters = [x for x in tested_parameters if x != 'KINASE_topKinases'] # Remove specific parameter
+    tested_parameters = [x for x in tested_parameters if x != 'KINASE_background']  # Remove specific parameter
+    tested_parameters = [x for x in tested_parameters if x != 'TF_background']  # Remove specific parameter
     for parameter in tested_parameters:
         # Rearrange data
-        grps = pd.unique(data[parameter].values)
-        d_data = {grp: data['Fitness'][data[parameter] == grp] for grp in grps}
-        # One way ANOVA
-        import statsmodels.api as sm
-        from statsmodels.formula.api import ols
+        #grps = pd.unique(data[parameter].values)
+        #d_data = {grp: data['Fitness'][data[parameter] == grp] for grp in grps}
 
+        # One way ANOVA
         mod = ols('Fitness ~ '+parameter,data=data).fit()
-        aov_table = sm.stats.anova_lm(mod, typ=2)
+        aov_table = sm.stats.anova_lm(mod, typ=1)
         p = aov_table['PR(>F)'][0]
         # Add P-val summary
         if p >= 0.05:
