@@ -320,9 +320,9 @@ def parameterStats(GAresults, write_Excel=False):
         aov_table = sm.stats.anova_lm(mod, typ=1)
         p = aov_table['PR(>F)'][0]
         # Add P-val summary
-        if p >= 0.05:
+        if p > 0.05:
             aov_table['Sig'] = "non-sig"
-        if p < 0.05:
+        if p <= 0.05:
             aov_table['Sig'] = '*'
         if p < 0.01:
             aov_table['Sig'] = '**'
