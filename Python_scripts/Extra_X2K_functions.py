@@ -2,16 +2,16 @@
 # Tells you the parameters for a given binary string
 def tell_parameters(binary, verbose=True):
     # Readjust bit parameters if length of binary string changes
-    bit_dict = {"TF_sort":binary[0:2],
-                "TF_species":binary[2:4],
-                "TF_databases":binary[4:6],
-                "TF_background":binary[6:8],
-                "TF_topTFs":binary[8:10],
-                "PPI_databases":binary[10:20],
-                "PPI_pathLength":binary[20:21],
-                "KINASE_sort":binary[21:23],
-                "KINASE_interactome":binary[23:25],
-                "KINASE_background":binary[25:27]
+    bit_dict = {"TF_sort": binary[0:2],
+                "TF_species": binary[2:4],
+                "TF_databases": binary[4:6],
+                "TF_background": binary[6:8],
+                "TF_topTFs": binary[8:10],
+                "PPI_databases": binary[10:28],
+                "PPI_pathLength": binary[28:29],
+                "KINASE_sort": binary[29:31],
+                "KINASE_interactome": binary[31:33],
+                "KINASE_background": binary[33:35]
                 }
     KINASE_topKinases = 20 # Should be consistent for every individual
 
@@ -24,15 +24,12 @@ def tell_parameters(binary, verbose=True):
 
     # G2N OPTIONS ############
     ## Databases
-    all_PPI_databases = ["BIND","BIOCARTA","BIOGRID","DIP","FIGEYS","HPRD","INNATEDB","INTACT","KEA","KEGG","MINT","MIPS","MURPHY","PDZBASE","PPID","PREDICTEDPPI","SNAVI","STELZL","VIDAL","HUMAP"]
+    all_PPI_databases = ["BIND", "BIOCARTA", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG",
+                         "MINT", "MIPS", "MURPHY", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL",
+                         "HUMAP"]  # "BIOGRID", "KEA"
     PPI_dbs = []
     PPI_string = bit_dict["PPI_databases"]
-    ### If no database selected, select at least one
-    from random import randint
-    if sum(map(int, PPI_string)) == 0:
-        ppi_list = list(PPI_string)
-        ppi_list[randint(0, (len(ppi_list)) - 1)] = '1'
-        bit_dict["PPI_databases"] = "".join(ppi_list)
+    bit_dict["PPI_databases"] = PPI_string
     ### Generate list of G2N databases
     for ind,bit in enumerate(PPI_string):
         if bit == "1":
