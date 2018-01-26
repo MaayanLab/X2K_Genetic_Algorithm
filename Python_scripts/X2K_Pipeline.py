@@ -62,14 +62,20 @@ def X2K_fitness(binary, fitness_method='simple'):
                          "MINT", "MIPS", "MURPHY", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP"]
     PPI_dbs = []
     PPI_string = bit_dict["PPI_databases"]
-    #
+    # ******* Turn off specific databases *******
+    ppi_list = list(PPI_string)
+    ppi_list[2] = '0'  # Turn off BIOGRID PPI
+    ppi_list[8] = '0'  # Turn off KEA PPI
+    PPI_string = "".join(ppi_list)
+    bit_dict["PPI_databases"] = PPI_string
+
     # *******************************************
     ### If no database selected, select at least one
     from random import randint
     while sum(map(int, PPI_string)) == 0:
         ppi_list = list(PPI_string)
         ppi_list[randint(0, (len(ppi_list)) - 1)] = '1'
-        # ******* Turn off specific databases *******
+        # ******* Turn off specific databases ******* AGAIN just in case it picked one of these
         ppi_list[2] = '0'  # Turn off BIOGRID PPI
         ppi_list[8] = '0'  # Turn off KEA PPI
         PPI_string = "".join(ppi_list)
