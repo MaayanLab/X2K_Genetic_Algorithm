@@ -15,14 +15,14 @@
 # binary = populationInit[0]
 
 # For checking whether the bit_dict is recording the right parameters
-# def makeString(length):
-#     import string
-#     import random
-#     letters = []
-#     for i in range(length):
-#         letters.append(random.choice(string.ascii_lowercase))
-#     return ''.join(letters)
-# binary = makeString(28)
+def makeString(length):
+    import string
+    import random
+    letters = []
+    for i in range(length):
+        letters.append(random.choice(string.ascii_lowercase))
+    return ''.join(letters)
+binary = makeString(35)
 
 #directory = "/Users/schilder/Desktop/x2k/data/" # Change to your directory
 directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
@@ -41,11 +41,11 @@ def X2K_fitness(binary, fitness_method='simple'):
                 "TF_databases": binary[4:6],
                 "TF_background": binary[6:8],
                 "TF_topTFs": binary[8:10],
-                "PPI_databases": binary[10:20],
-                "PPI_pathLength": binary[20:21],
-                "KINASE_sort": binary[21:23],
-                "KINASE_interactome": binary[23:25],
-                "KINASE_background": binary[25:27]
+                "PPI_databases": binary[10:28],
+                "PPI_pathLength": binary[28:29],
+                "KINASE_sort": binary[29:31],
+                "KINASE_interactome": binary[31:33],
+                "KINASE_background": binary[33:35]
                 }
     KINASE_topKinases = 20  # Should be consistent for every individual
 
@@ -58,16 +58,16 @@ def X2K_fitness(binary, fitness_method='simple'):
 
     # G2N OPTIONS ############
     ## Databases
-    all_PPI_databases = ["BIND", "BIOCARTA", "BIOGRID", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEA", "KEGG",
-                         "MINT", "MIPS", "MURPHY", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP"]
+    all_PPI_databases = ["BIND", "BIOCARTA", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG",
+                         "MINT", "MIPS", "MURPHY", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP"] # "BIOGRID", "KEA"
     PPI_dbs = []
     PPI_string = bit_dict["PPI_databases"]
     # ******* Turn off specific databases *******
-    ppi_list = list(PPI_string)
-    ppi_list[2] = '0'  # Turn off BIOGRID PPI
-    ppi_list[8] = '0'  # Turn off KEA PPI
-    PPI_string = "".join(ppi_list)
-    bit_dict["PPI_databases"] = PPI_string
+    #ppi_list = list(PPI_string)
+    #ppi_list[2] = '0'  # Turn off BIOGRID PPI
+    #ppi_list[8] = '0'  # Turn off KEA PPI
+    #PPI_string = "".join(ppi_list)
+    #bit_dict["PPI_databases"] = PPI_string
 
     # *******************************************
     ### If no database selected, select at least one
@@ -76,8 +76,8 @@ def X2K_fitness(binary, fitness_method='simple'):
         ppi_list = list(PPI_string)
         ppi_list[randint(0, (len(ppi_list)) - 1)] = '1'
         # ******* Turn off specific databases ******* AGAIN just in case it picked one of these
-        ppi_list[2] = '0'  # Turn off BIOGRID PPI
-        ppi_list[8] = '0'  # Turn off KEA PPI
+        #ppi_list[2] = '0'  # Turn off BIOGRID PPI
+        #ppi_list[8] = '0'  # Turn off KEA PPI
         PPI_string = "".join(ppi_list)
         bit_dict["PPI_databases"] = PPI_string
     ### Generate list of G2N databases
