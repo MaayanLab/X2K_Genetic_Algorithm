@@ -322,16 +322,15 @@ length(GEO_KinasePert.dn); length(GEO_KinasePert.up)
 
 ## Import edited chem files
 ```{r}
-setwd("~/Desktop/x2k/Validation/")
+setwd("~/Desktop/X2K_Genetic_Algorithm/Validation/")
 # Import kinome list
 library(readxl)
-kinome <- read_excel("~/Desktop/x2k/General_Resources/Kinase.com/Kinome_Hsap.xls")
+kinome <- read_excel("../General_Resources/Kinase.com/Kinome_Hsap.xls")
 #kinome_updated <- read_excel("~/Desktop/x2k/General_Resources/Kinase.com/Kinome_Hsap_updated.xls")
 kea_kinases <- read.delim("../data/KEA/kea_ranks.txt", header=F, col.names = c("Name", "Rank1","Rank2"))
 
 # IMPORT PYTHON-EDITED L1000 chem pert data
 chem_up_edit <-read.delim("Perturbation_Data/LINCS_L1000_Chem/LINCS_L1000_Chem_Pert_up_editPY.txt", header=F)
-View(read2[1:20,])
 
 chem_dn_edit <-read.delim("Perturbation_Data/LINCS_L1000_Chem/LINCS_L1000_Chem_Pert_dn_editPY.txt", header=F, colClasses = "character")
 ```
@@ -473,15 +472,15 @@ write.table(chem_dn_kinaseInhibitors.collapse, "Perturbation_Data/LINCS_L1000_Ch
 # curl -H "Accept: text/csv" http://lincs.hms.harvard.edu/db/api/v1/protein/ >> prot.json
 # curl -H "Accept: text/csv limit: inf" http://lincs.hms.harvard.edu/db/api/v1/protein/ >> prot.json
 #as.data.frame(out)
-library(jsonlite); library(readxl); library(svMisc)
-expts <-as.data.frame(read_excel("Drug-Target_Data/Kinome Scan/LINCS_HMS_ExperimentList.xlsx"))
+library(jsonlite); library(readxl); #library(svMisc)
+expts <-as.data.frame(read_excel("Drug-Target_Data/Kinome_Scan/LINCS_HMS_ExperimentList.xlsx"))
 datasetIDs <- subset(expts, `HMS Dataset Type`=="KINOMEscan" )$`HMS Dataset ID` #|`HMS Dataset Type`=="KiNativ"
 length(datasetIDs)
 
 # Import LINCS Drug IDs
 # Get small molecule (sm) info
-scID <- unique(KS_expt_sub$smallmolecule_smCenterCompoundID)
-saltID <- unique(KS_expt_sub$smallmolecule_smSalt)
+#scID <- unique(KS_expt_sub$smallmolecule_smCenterCompoundID)
+#saltID <- unique(KS_expt_sub$smallmolecule_smSalt)
   #url_sm <- paste("http://lincs.hms.harvard.edu/db/api/v1/","smallmolecule/",scID,"-", saltID, "/", sep="")
   #KS_sm <-jsonlite::fromJSON(url_sm)
 ```
@@ -528,7 +527,7 @@ create_Drug.KinaseTarget_df <- function(KS_expt_sub, decreasing){
   Drug_KinaseTargets = data.frame()
   unrecovered_IDs = c()
   # Import HMS LINCS protein metadata
-  prots <-data.frame(read_excel("Drug-Target_Data/Kinome Scan/proteins_20180116225538.xlsx"))
+  prots <-data.frame(read_excel("Drug-Target_Data/Kinome_Scan/proteins_20180116225538.xlsx"))
   prots <- prots[!is.na(prots$Gene.Symbol),]
   pbar=1
   for(ID in datasetIDs){
@@ -574,7 +573,7 @@ create_Drug.KinaseTarget_df <- function(KS_expt_sub, decreasing){
   
   #return(Drug_KinaseTargets) }
 #Drug_KinaseTargets <-get_Drug_KinaseTargets(datasetIDs)
-write.table(Drug_KinaseTargets, "Drug-Target_Data/Kinome Scan/KinomeScan_Drug.KinaseTargets_noScores.txt", sep='\t',col.names = F, row.names = F, quote=F)
+write.table(Drug_KinaseTargets, "Drug-Target_Data/Kinome_Scan/KinomeScan_Drug.KinaseTargets_noScores.txt", sep='\t',col.names = F, row.names = F, quote=F)
 ```
 
 #### Collapse KINOMEscan data by drug, Get average rank for each DEG
