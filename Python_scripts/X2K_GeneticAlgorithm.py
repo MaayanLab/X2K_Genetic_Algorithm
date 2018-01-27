@@ -284,13 +284,13 @@ for item in files:
 ### Dataset.A: GEO KINASE PERTURBATION DATA
 #copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.txt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
-#copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt")
+copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
-copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
+#copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
 
 ## Run GA with Subset1
 FITNESS_METHOD='simple'
-GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=27, numberOfGenerations=10, topNum=10, childrenPerGeneration=90, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
+GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=35, numberOfGenerations=10, topNum=10, childrenPerGeneration=90, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
 
 #
