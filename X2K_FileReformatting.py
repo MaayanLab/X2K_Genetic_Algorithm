@@ -143,8 +143,8 @@ reduced_split_testgmt(totalExperiments=570, testPercent=80,\
 # LINCS L1000 + KINOMEscan
 reduced_split_testgmt(totalExperiments=570, testPercent=80,\
               input="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.DN_filtered.txt",\
-              output1="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.SUBSET1",\
-              output2="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.SUBSET1",\
+              output1="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.SUBSET2.txt",\
               up_dn="dn")
 reduced_split_testgmt(totalExperiments=570, testPercent=80,\
               input="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.UP_filtered.txt",\
