@@ -222,7 +222,7 @@ allFitnesses = GAresults[1] # Get all fitnesses
 averageFitness = GAresults[2] # Get averageFitness per generation
 peakFitness = GAresults[3] # Get the peakFitness per generation
 numberOfGenerations = GAresults[4] # GA settings
-average_PPI_sizes = GAresults[5]
+average_PPI_sizes = GAresults[5] # Average_PPI_sizes
 fitnessDictionary_revived = GAresults[6]
 
 import Python_scripts.Extra_X2K_functions as Ex
