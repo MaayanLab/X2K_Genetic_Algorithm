@@ -218,7 +218,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
     plt.legend(loc='lower right', borderaxespad=2)
     plt.ylim([0, max(data['Fitness'])+5])
     plt.subplots_adjust(right=padRight, left=padLeft)
-    plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=70)  # bbox_to_anchor=(horizontal, vertical)
+    plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=1)  # bbox_to_anchor=(horizontal, vertical)
     plt.xticks(np.arange(1, max(x) + 1, 1))
 
 
@@ -263,50 +263,40 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
             plt.tick_params(axis='x', labelbottom='off')
             plt.xlabel('')
     if saveFig!='No':
-        import os
-        if not os.path.exists('Figures/'):
-            os.makedirs('Figures/')
-        plt.savefig('Figures/'+saveFig+'.eps', format='eps', dpi=1000)
+        plt.savefig(saveFig, format='eps', dpi=1000)
 
-# parameterEvolutionPlot(GAresults_Subset1)
-#
+
 # def ParameterBoxplots(GAresults):
 #     import pandas as pd
 #     data = parameterDF(GAresults)
 #     for parameter in data.columns[3:]:
 #         pd.DataFrame.boxplot(data, 'Fitness', parameter)
-#
-# def fitnessHistogramCurves(allFitnesses, gen_spacing=10):
-#     from scipy.stats import norm
-#     import matplotlib.mlab as mlab
-#     import matplotlib.pyplot as plt
-#     from matplotlib.pyplot import cm
-#     which_gens = [0] + list(range(-1, len(allFitnesses)+1))[0::gen_spacing][1:]
-#
-#     color = cm.rainbow(np.linspace(0, 1, len(which_gens)))
-#
-#     for i,gen in enumerate(which_gens):
-#         # LINE METHOD
-#         datos=allFitnesses[gen-1]
-#         # best fit of data
-#         (mu, sigma) = norm.fit(datos)
-#         # the histogram of the data
-#         n, bins, patches = plt.hist(datos, 5, normed=1, facecolor=color[i], alpha=0.75) # Make the histogram bar invisible by coloring white
-#         # add a 'best fit' line
-#         y = mlab.normpdf(bins, mu, sigma)
-#         l = plt.plot(bins, y, color[i], linewidth=1)
-#         # plot
-#         plt.xlabel('Generation')
-#         plt.ylabel('Frequency')
-#         plt.title('Distribution of All Fitnesses: Every %.0f Generations' % (gen_spacing))
-#         plt.grid(True)
-#         plt.show()
-#
-#     for i gen in enumerate(which_gens):
-#         #MORIGINAL METHOD
-#         plt.hist(allFitnesses[0], bins=20, color=color[i])  # 1st
-#
-#
+
+def fitnessHistogramCurves(allFitnesses, gen_spacing=1, figSize=(10,6)):
+    import matplotlib.pyplot as plt
+    from matplotlib.pyplot import cm
+    import seaborn as sns
+    import numpy as np
+    #which_gens = [0] + list(range(-1, len(allFitnesses)+1))[0::gen_spacing][1:]
+    which_gens = range(0,int(len(allFitnesses)/gen_spacing))
+    color = cm.rainbow(np.linspace(0, 1, len(which_gens)))
+
+    plt.figure(figsize=figSize)
+    for i,gen in enumerate(which_gens):
+        # LINE METHOD
+        datos=allFitnesses[gen]
+        # Use kernal density plot function from seaborn
+        sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen+1))
+    plt.xlabel('Fitness',fontsize=12)
+    plt.ylabel('Frequency',fontsize=12)
+    #plt.title('Distribution of All Fitnesses: Every %.0f Generation(s)' % (gen_spacing))
+    plt.gcf().set_facecolor('white')
+    plt.grid(True)
+    return plt
+#fitnessHistogramCurves(allFitnesses, gen_spacing=1)
+
+
+
 
 
 
