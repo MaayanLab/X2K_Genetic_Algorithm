@@ -182,10 +182,9 @@ def freqTable(data, parameter):
 
 
 # Make super awesome plot showing evolution of parameter distribution over generations/time
-def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
+def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
     data = parameterDF(GAresults)
     import matplotlib.pyplot as plt
-    #import matplotlib as mpl
     import pandas as pd
     import numpy as np
     # Setup dimension vars
@@ -196,7 +195,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     parameters = [x for x in parameters if x != 'KINASE_topKinases']  # Remove specific parameter
     param_num = len(parameters)
     fitness_rows = 5
-    PPI_size_rows = 2
+    PPI_size_rows = 1
     nrows = fitness_rows+PPI_size_rows+param_num+2
     padRight=.6; padLeft=.2
     # Setup Fitness data
@@ -211,8 +210,8 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     #ax1.plot(Fitness_both.index, Fitness_both['Fitness'], color='blue', linestyle='-', marker='.', markersize=2)
     plt.errorbar(x, Fitness_avg['Fitness'], yerr=yerr1, color='blue', marker='o',markersize=5, capsize=2, label=" Average Fitness")
     ax1.plot(x, Fitness_peak['Fitness_peak'], 'purple', linestyle='-', marker='^', markersize=5, label="Peak Fitness")
-    ax1.axhline(y=chance, linestyle="-.", color='r', label="Chance levels")
-    plt.title('Fitness Over Generations', fontsize=20)
+    ax1.axhline(y=chance, linestyle="--", color='r', label="Chance levels")
+    #plt.title('Fitness Over Generations', fontsize=20)
     plt.xlabel('Generation', fontsize=12)
     plt.ylabel('Fitness', fontsize=12)
     plt.tick_params(axis='x', labelsize=12)
@@ -228,7 +227,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     PPI_std = np.std(GAresults[5],axis=1,dtype=float)
     PPI_dat = data[['Average_PPI_size', 'Generation']].groupby('Generation').mean()
     # PPI Size plot
-    ax2 = plt.subplot2grid((nrows, 1), ((fitness_rows+PPI_size_rows), 0), facecolor='whitesmoke', rowspan=PPI_size_rows)
+    ax2 = plt.subplot2grid((nrows, 1), ((fitness_rows+PPI_size_rows), 0), facecolor='whitesmoke', rowspan=PPI_size_rows+1)
     ax2.plot(PPI_dat.index, PPI_dat['Average_PPI_size'], 'firebrick', marker='d')
     ax2.errorbar(x=PPI_dat.index, y=PPI_dat['Average_PPI_size'], yerr=PPI_std, capsize=3, color='mediumpurple')
     plt.ylabel('PPI Size', rotation=0, labelpad=50, fontsize=12)
@@ -253,18 +252,21 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
         if parameter == 'PPI_databases':
             bestPPIdbs = tell_parameters(getFittestIndividual(GAresults))[1].split(";")[1]
             plt.legend(["Optimized database combination (of "+str(len(tab1.columns))+"):\n"+bestPPIdbs],loc='center left', bbox_to_anchor=(1, .5), ncol=70)
-            #L.get_texts()[0].set_text("Optimized database combination (of "+str(len(tab1.columns))+"):\n"+bestPPIdbs)
-
-            #plt.legend( labels=str(str(len(tab1.columns))+"database combinations") )
         plt.xticks(rotation=0)
         plt.tick_params(axis='y', labelsize=7)
         plt.tick_params(axis='x', labelsize=12)
-        plt.xlabel('')
+        plt.xlabel('Generation',fontsize=12)
         plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
         plt.xticks(np.arange(1, max(x) + 1, 1))
         plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
         if i != param_num-1: # Turn of xtick labels for all but bottom plot
             plt.tick_params(axis='x', labelbottom='off')
+            plt.xlabel('')
+    if saveFig!='No':
+        import os
+        if not os.path.exists('Figures/'):
+            os.makedirs('Figures/')
+        plt.savefig('Figures/'+saveFig+'.eps', format='eps', dpi=1000)
 
 # parameterEvolutionPlot(GAresults_Subset1)
 #
