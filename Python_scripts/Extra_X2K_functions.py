@@ -266,36 +266,60 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
         plt.savefig(saveFig, format='eps', dpi=1000)
 
 
-# def ParameterBoxplots(GAresults):
-#     import pandas as pd
-#     data = parameterDF(GAresults)
-#     for parameter in data.columns[3:]:
-#         pd.DataFrame.boxplot(data, 'Fitness', parameter)
+def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6), saveFig='No'):
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    df = parameterDF(GAresults)
+    tested_parameters = list(df.columns[4:][:-1])  # Test which parameters to run through ANOVA
+    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','PPI_databases','TF_background']]  # Remove specific parameter
+    tested_parameters.append('Fitness')
+    data =  df[[col for col in df.columns if col in tested_parameters]] # Filter database by revelvant paramters
+    plt.figure(figsize=figSize)
+    for i,parameter in enumerate(reversed(data.columns[1:])):
+        # Turn ax string into variable
+        #sns.set_palette(sns.color_palette("BuPu", len(data[parameter].unique()) ))  # Run this BEFORE you create your subplot
+        ax = plt.subplot(numRows, numCols, i+1)
+        #pd.DataFrame.boxplot(data, column='Fitness', by=parameter, ax=ax, grid=False, notch=True, patch_artist=True, rot=45)
+        sns.violinplot(x=parameter, y="Fitness", data=data, palette="BuPu")
+        plt.xticks(rotation=45, ha='right')
+        plt.title(parameter)
+        plt.ylabel(''); plt.xlabel('')
+        if i == 0 or i == 3:
+            plt.ylabel('Fitness')
+    plt.subplots_adjust(hspace=.75, wspace=.5, bottom=.2)
+    plt.gcf().set_facecolor('white')
+    if saveFig!='No':
+        plt.savefig(saveFig, format='eps', dpi=1000)
 
-def fitnessHistogramCurves(allFitnesses, gen_spacing=1, figSize=(10,6)):
+
+
+
+def fitnessHistogramCurves(allFitnesses, genSpacing=2, figSize=(10,6)):
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import cm
     import seaborn as sns
     import numpy as np
-    #which_gens = [0] + list(range(-1, len(allFitnesses)+1))[0::gen_spacing][1:]
-    which_gens = range(0,int(len(allFitnesses)/gen_spacing))
-    color = cm.rainbow(np.linspace(0, 1, len(which_gens)))
+    #whichGens = [0] + list(range(-1, len(allFitnesses)+1))[0::gen_spacing][1:]
+    count = 0
+    whichGens = [0]
+    while count <= len(allFitnesses)-genSpacing-1:
+        whichGens.append(count+genSpacing)
+        count += genSpacing
+
+    color = cm.rainbow(np.linspace(0, 1, len(whichGens)))
 
     plt.figure(figsize=figSize)
-    for i,gen in enumerate(which_gens):
+    for i,gen in enumerate(whichGens):
         # LINE METHOD
-        datos=allFitnesses[gen]
+        datos=allFitnesses[i]
         # Use kernal density plot function from seaborn
-        sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen+1))
+        sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen+1), gridsize=100)
     plt.xlabel('Fitness',fontsize=12)
     plt.ylabel('Frequency',fontsize=12)
     #plt.title('Distribution of All Fitnesses: Every %.0f Generation(s)' % (gen_spacing))
     plt.gcf().set_facecolor('white')
-    plt.grid(True)
     return plt
 #fitnessHistogramCurves(allFitnesses, gen_spacing=1)
-
-
 
 
 
@@ -311,7 +335,7 @@ def parameterStats(GAresults, write_Excel=False):
     tested_parameters = [x for x in tested_parameters if x != 'KINASE_topKinases'] # Remove specific parameter
     tested_parameters = [x for x in tested_parameters if x != 'KINASE_background']  # Remove specific parameter
     tested_parameters = [x for x in tested_parameters if x != 'TF_background']  # Remove specific parameter
-    for parameter in tested_parameters:
+    for parameter in reversed(tested_parameters):
         # Rearrange data
         #grps = pd.unique(data[parameter].values)
         #d_data = {grp: data['Fitness'][data[parameter] == grp] for grp in grps}
