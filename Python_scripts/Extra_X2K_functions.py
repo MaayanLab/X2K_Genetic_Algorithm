@@ -36,7 +36,7 @@ def tell_parameters(binary, verbose=True):
             PPI_dbs.append( all_PPI_databases[ind] )
     PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    PPI_pathLength = {"0":1, "1":2}
+    PPI_pathLength = {"0":1, "1":1} # CHANGE BACK AFTER THIS RUN
 
 
     ############ KEA OPTIONS ############
@@ -357,9 +357,9 @@ def parameterStats(GAresults, writeExcel='No'):
             aov_table['Sig'] = '****'
         # mod.summary() # For full summary
         ## Using full anova_lm output
-        #frames.append(aov_table)
+        frames.append(aov_table)
         ## Using individual numbers
-        frames.append(pd.Series([parameter, esq_sm, p]))
+        #frames.append(pd.Series([parameter, esq_sm, p]))
         parameter_AOV_results = pd.concat(frames)
     print(parameter_AOV_results)
     if writeExcel != 'No':
@@ -368,6 +368,7 @@ def parameterStats(GAresults, writeExcel='No'):
         writer = pd.ExcelWriter(writeExcel)
         parameter_AOV_results.to_excel(writer, 'Sheet1')
         writer.save()
+
     return parameter_AOV_results
 
 # parameter_AOV_results = parameterStats(GAresults, True)

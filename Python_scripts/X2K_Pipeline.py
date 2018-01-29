@@ -86,7 +86,7 @@ def X2K_fitness(binary, fitness_method='simple'):
             PPI_dbs.append(all_PPI_databases[ind])
     PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    PPI_pathLength = {"0": 1, "1": 2}
+    PPI_pathLength = {"0": 1, "1": 1} # CHANGE BACK AFTER THIS RUN
 
     ############ KEA OPTIONS ############
     KINASE_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
@@ -347,6 +347,9 @@ def X2K_fitness(binary, fitness_method='simple'):
             # Calculate individual's  fitness score
             if len(kinases_recovered) > 0:
                 fitness_score = sum(adjustedScores) / len(adjustedScores)*100  # Number of kinases recovered over the total number of instances x 100
+            ## Workaround to limit PPI size:
+            # elif average_PPI_size > 100:
+            #     fitness_score = 0
             else:
                 fitness_score = 0
             KEA_output.close()
