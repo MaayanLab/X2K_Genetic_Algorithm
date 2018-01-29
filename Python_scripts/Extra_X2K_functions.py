@@ -332,7 +332,7 @@ def parameterStats(GAresults, writeExcel='No'):
     data = parameterDF(GAresults)
     frames = []
     tested_parameters = list(data.columns[4:][:-1]) # Test which parameters to run through ANOVA
-    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','TF_background']]
+    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','TF_background','PPI_pathLength']]
 
     for parameter in reversed(tested_parameters):
         # Rearrange data
@@ -360,8 +360,17 @@ def parameterStats(GAresults, writeExcel='No'):
         frames.append(aov_table)
         ## Using individual numbers
         #frames.append(pd.Series([parameter, esq_sm, p]))
-        parameter_AOV_results = pd.concat(frames)
+    # Turn rownames into first col
+    #.index.name = 'Parameter'
+    df.reset_index(inplace=True)
+    parameter_AOV_results.columns = ['Parameter','SS','df','F','p-value','Sig.']
+    parameter_AOV_results[['SS', 'F', 'p-value','Sig.']].apply(pd.to_numeric)
+    parameter_AOV_results = pd.concat(frames).round(3)
+    parameter_AOV_results = parameter_AOV_results.fillna("")
+    parameter_AOV_results['df'] = pd.to_parameter_AOV_results['df'].to_numeric()
     print(parameter_AOV_results)
+    round(parameter_AOV_results)
+
     if writeExcel != 'No':
         # Write AOV results to excel file
         print("Writing AOV results to excel file...")
