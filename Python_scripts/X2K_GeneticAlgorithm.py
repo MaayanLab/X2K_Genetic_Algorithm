@@ -16,7 +16,7 @@ def createPopulation(popSize, parameterLength):
         populationinit.append(''.join(choice(('0', '1')) for _ in range(parameterLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(10, 27)
+# population = createPopulation(1, 35)
 
 ###################################
 # 2. Calculate fitness

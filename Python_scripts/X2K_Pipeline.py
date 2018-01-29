@@ -15,19 +15,19 @@
 # binary = populationInit[0]
 
 # For checking whether the bit_dict is recording the right parameters
-def makeString(length):
-    import string
-    import random
-    letters = []
-    for i in range(length):
-        letters.append(random.choice(string.ascii_lowercase))
-    return ''.join(letters)
-binary = makeString(35)
+# def makeString(length):
+#     import string
+#     import random
+#     letters = []
+#     for i in range(length):
+#         letters.append(random.choice(string.ascii_lowercase))
+#     return ''.join(letters)
+# binary = makeString(35)
 
 directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
 #directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
 
-# binary = '111011001000000000000100100'
+# binary = '11010101111110001100010001110001111'
 
 # X2K Fitness Function for GA
 def X2K_fitness(binary, fitness_method='simple'):

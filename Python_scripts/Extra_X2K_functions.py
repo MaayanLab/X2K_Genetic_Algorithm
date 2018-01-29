@@ -325,16 +325,15 @@ def fitnessHistogramCurves(allFitnesses, genSpacing=2, figSize=(10,6)):
 
 
 
-def parameterStats(GAresults, write_Excel=False):
+def parameterStats(GAresults, writeExcel='No'):
     import pandas as pd
     import statsmodels.api as sm
     from statsmodels.formula.api import ols
     data = parameterDF(GAresults)
     frames = []
     tested_parameters = list(data.columns[4:][:-1]) # Test which parameters to run through ANOVA
-    tested_parameters = [x for x in tested_parameters if x != 'KINASE_topKinases'] # Remove specific parameter
-    tested_parameters = [x for x in tested_parameters if x != 'KINASE_background']  # Remove specific parameter
-    tested_parameters = [x for x in tested_parameters if x != 'TF_background']  # Remove specific parameter
+    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','TF_background']]
+
     for parameter in reversed(tested_parameters):
         # Rearrange data
         #grps = pd.unique(data[parameter].values)
@@ -342,7 +341,8 @@ def parameterStats(GAresults, write_Excel=False):
 
         # One way ANOVA
         mod = ols('Fitness ~ '+parameter,data=data).fit()
-        aov_table = sm.stats.anova_lm(mod, typ=1)
+        aov_table = sm.stats.anova_lm(mod, typ=2)
+        esq_sm = aov_table['sum_sq'][0] / (aov_table['sum_sq'][0] + aov_table['sum_sq'][1])
         p = aov_table['PR(>F)'][0]
         # Add P-val summary
         if p > 0.05:
@@ -356,13 +356,16 @@ def parameterStats(GAresults, write_Excel=False):
         if p < 0.0001:
             aov_table['Sig'] = '****'
         # mod.summary() # For full summary
-        frames.append(aov_table)
+        ## Using full anova_lm output
+        #frames.append(aov_table)
+        ## Using individual numbers
+        frames.append(pd.Series([parameter, esq_sm, p]))
         parameter_AOV_results = pd.concat(frames)
     print(parameter_AOV_results)
-    if write_Excel == True:
+    if writeExcel != 'No':
         # Write AOV results to excel file
         print("Writing AOV results to excel file...")
-        writer = pd.ExcelWriter('GA_Results/Parameter_AOV_Results.xlsx')
+        writer = pd.ExcelWriter(writeExcel)
         parameter_AOV_results.to_excel(writer, 'Sheet1')
         writer.save()
     return parameter_AOV_results
