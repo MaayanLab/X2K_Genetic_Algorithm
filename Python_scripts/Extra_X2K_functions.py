@@ -36,7 +36,7 @@ def tell_parameters(binary, verbose=True):
             PPI_dbs.append( all_PPI_databases[ind] )
     PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    PPI_pathLength = {"0":1, "1":1} # CHANGE BACK AFTER THIS RUN
+    PPI_pathLength = {"0":1, "1":2} # CHANGE BACK AFTER THIS RUN
 
 
     ############ KEA OPTIONS ############
@@ -182,7 +182,7 @@ def freqTable(data, parameter):
 
 
 # Make super awesome plot showing evolution of parameter distribution over generations/time
-def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
+def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     data = parameterDF(GAresults)
     import matplotlib.pyplot as plt
     import pandas as pd
@@ -210,7 +210,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
     #ax1.plot(Fitness_both.index, Fitness_both['Fitness'], color='blue', linestyle='-', marker='.', markersize=2)
     plt.errorbar(x, Fitness_avg['Fitness'], yerr=yerr1, color='blue', marker='o',markersize=5, capsize=2, label=" Average Fitness")
     ax1.plot(x, Fitness_peak['Fitness_peak'], 'purple', linestyle='-', marker='^', markersize=5, label="Peak Fitness")
-    ax1.axhline(y=chance, linestyle="--", color='r', label="Chance levels")
+    #ax1.axhline(y=chance, linestyle="--", color='r', label="Chance levels")
     #plt.title('Fitness Over Generations', fontsize=20)
     plt.xlabel('Generation', fontsize=12)
     plt.ylabel('Fitness', fontsize=12)
@@ -262,11 +262,10 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22,saveFig='No'):
         if i != param_num-1: # Turn of xtick labels for all but bottom plot
             plt.tick_params(axis='x', labelbottom='off')
             plt.xlabel('')
-    if saveFig!='No':
-        plt.savefig(saveFig, format='eps', dpi=1000)
 
 
-def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6), saveFig='No'):
+
+def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6)):
     import seaborn as sns
     import matplotlib.pyplot as plt
     df = parameterDF(GAresults)
@@ -280,7 +279,7 @@ def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6), saveFig='
         #sns.set_palette(sns.color_palette("BuPu", len(data[parameter].unique()) ))  # Run this BEFORE you create your subplot
         ax = plt.subplot(numRows, numCols, i+1)
         #pd.DataFrame.boxplot(data, column='Fitness', by=parameter, ax=ax, grid=False, notch=True, patch_artist=True, rot=45)
-        sns.violinplot(x=parameter, y="Fitness", data=data, palette="BuPu")
+        sns.violinplot(x=parameter, y="Fitness", data=data, palette="BuPu", ax=ax)
         plt.xticks(rotation=45, ha='right')
         plt.title(parameter)
         plt.ylabel(''); plt.xlabel('')
@@ -288,8 +287,7 @@ def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6), saveFig='
             plt.ylabel('Fitness')
     plt.subplots_adjust(hspace=.75, wspace=.5, bottom=.2)
     plt.gcf().set_facecolor('white')
-    if saveFig!='No':
-        plt.savefig(saveFig, format='eps', dpi=1000)
+
 
 
 
@@ -308,14 +306,14 @@ def fitnessHistogramCurves(allFitnesses, genSpacing=2, figSize=(10,6)):
 
     color = cm.rainbow(np.linspace(0, 1, len(whichGens)))
 
-    plt.figure(figsize=figSize)
+    plt.figure()
     for i,gen in enumerate(whichGens):
         # LINE METHOD
         datos=allFitnesses[i]
         # Use kernal density plot function from seaborn
         sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen+1), gridsize=100)
-    plt.xlabel('Fitness',fontsize=12)
-    plt.ylabel('Frequency',fontsize=12)
+    plt.xlabel('Fitness')
+    plt.ylabel('Frequency')
     #plt.title('Distribution of All Fitnesses: Every %.0f Generation(s)' % (gen_spacing))
     plt.gcf().set_facecolor('white')
     return plt

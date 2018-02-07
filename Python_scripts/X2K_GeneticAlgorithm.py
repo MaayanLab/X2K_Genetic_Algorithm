@@ -359,7 +359,7 @@ results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 np.save(results_dir+GA_output_name, list([GAresults_Subset1, allFitnesses_Subset2, \
-                                          averageFitness_Subset2, peakFitness_Subset2]))
+                                          averageFitness_Subset2, peakFitness_Subset2, average_PPI_sizes_Subset2]))
 
 # Load
 import numpy as np
