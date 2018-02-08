@@ -86,7 +86,7 @@ def X2K_fitness(binary, fitness_method='simple'):
             PPI_dbs.append(all_PPI_databases[ind])
     PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    PPI_pathLength = {"0": 1, "1": 2} # CHANGE BACK AFTER THIS RUN
+    PPI_pathLength = {"0": 1, "1": 2}
 
     ############ KEA OPTIONS ############
     KINASE_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
@@ -356,9 +356,11 @@ def X2K_fitness(binary, fitness_method='simple'):
             print("Individual's fitness = " + str(fitness_score))
 
 
+
     if fitness_method == 'LINCS_L1000 + KINOMEscan (adjustedScore)':
         print("Calculating"+fitness_method+"fitness...")
         import Python_scripts.rbo as rbo
+
         with open(directory + "output/kea_out.txt") as KEA_output:
             lineCount = 0; kinases_recovered = []; kinases_missed = []; adjustedScores = []
             KEA_out = KEA_output.readlines()
@@ -395,6 +397,35 @@ def X2K_fitness(binary, fitness_method='simple'):
             else:
                 fitness_score = 0
             KEA_output.close()
+            print("Individual's fitness = " + str(fitness_score))
+
+    if fitness_method == 'L1000_DRH - RankBasedOrder':
+        print("Calculating"+fitness_method+"fitness...")
+        from Python_scripts.rbo import rbo
+
+        with open(directory + "output/kea_out.txt") as KEA_output:
+            rboScores=[]
+            KEA_out = KEA_output.readlines()
+            #line = "CPC005_PC3_24H-indirubin-10.0_[CDK1|CDK5|GSK3A]_up		USP15	DUSP6	YIPF	IDUA	CHRNA5	SYNRG	AURKA	IFT122	PHKA	GAL	PTMA	IDS	REEP4	HMOX	NPHP4	RREB	ATP5SL"
+            for line in KEA_out:
+                # Set up your two lists (targets and predicted)
+                kinaseTargets = line.split("_")[3].strip("[").strip("]").split("|")
+                predictedKinases = line.split(",")[1:]
+                # As long as the kinase list is not blank, get rid of \n in last item
+                if predictedKinases != []:
+                    predictedKinases[-1] = predictedKinases[-1].strip()
+
+                # Get the simple intersection between the two lists
+                ## intersection = [x for x in kinaseTargets if x in predictedKinases]
+                ## percentOverlap = len(intersection)/len(kinaseTargets)*100
+                if len(predictedKinases)>0:
+                    # Conduct RankedBasedOrder statistic
+                    rboResults = rbo(kinaseTargets, predictedKinases, .9)
+                    rboScores.append(rboResults['res'])
+                else: rboScores.append(0)
+                # Get the average RBO score
+                fitness_score = sum(rboScores) / len(rboScores)
+
             print("Individual's fitness = " + str(fitness_score))
 
     return fitness_score, average_PPI_size

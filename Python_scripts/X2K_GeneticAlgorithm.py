@@ -5,6 +5,22 @@
 #############################################################################################
 
 ###################################
+# 0. Initialize X2K
+###################################
+# import os
+# # Initialize X2K steps
+# os.system('java -jar x2k_CHEA.jar')
+# os.system('java -jar x2k_G2N.jar')
+# os.system('java -jar x2k_KEA.jar')
+# # Kill processes
+# os.system('pkill 5000')
+# os.system('pkill 5001')
+# os.system('pkill 5002')
+#
+
+
+
+###################################
 # 1. Create initial population
 ###################################
 # binary = '0010100101111001111011111110'
@@ -214,14 +230,15 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
     return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary
 
 
-GAresults = GAfunction(initialPopSize=5, parameterLength=27, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitness_method='LINCS_L1000 + DrugRepurposingHub (adjustedScore)')
+GAresults = GAfunction(initialPopSize=5, parameterLength=35, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
+                       fitness_method='L1000_DRH - RankBasedOrder')
 
 
 allPopulations = GAresults[0]# Get all populations
 allFitnesses = GAresults[1] # Get all fitnesses
 averageFitness = GAresults[2] # Get averageFitness per generation
 peakFitness = GAresults[3] # Get the peakFitness per generation
-numberOfGenerations = GAresults[4] # GA settings
+GA_settings = GAresults[4] # GA settings
 average_PPI_sizes = GAresults[5] # Average_PPI_sizes
 fitnessDictionary_revived = GAresults[6]
 
@@ -235,9 +252,10 @@ Ex.parameterEvolutionPlot(GAresults)
 ###################################
 import matplotlib.pyplot as plt
 # Plot averageFitness
-x = range(len(averageFitness))
 y1 = averageFitness
 y2 = peakFitness
+x = range(1,len(y1)+1)
+
 plt.plot(x, y1, 'bo--', markersize=3, label='Average Fitness')
 plt.plot(x, y2, 'm^--', markersize=3, label='Peak Fitness')
 plt.xlabel('Generation')
@@ -248,15 +266,6 @@ plt.legend(loc='lower right')
 
 # axes = plt.gca()
 # axes.set_ylim([0,30])
-
-
-# Plot the distribution of ALL fitnesses in 1st, 2nd & final populations
-plt.hist( allFitnesses[0], bins=20) # 1st
-plt.hist( allFitnesses[1], bins=20) # 2nd
-plt.hist( allFitnesses[-1], bins=5) # Last
-plt.ylabel('Frequency')
-plt.title('Fitness distributions over generations')
-
 
 
 
@@ -289,11 +298,11 @@ copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filte
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
 
 ## Run GA with Subset1
-FITNESS_METHOD='simple'
-GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=35, numberOfGenerations=10, topNum=10, childrenPerGeneration=90, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
+FITNESS_METHOD='L1000_DRH - RankBasedOrder'
+GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=35, numberOfGenerations=10, topNum=10, childrenPerGeneration=90, crossoverPoints=7, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
 
-#
+
 # # Recover fitnessDictionary
 # def recoverFitnessDictionary(GAresults):
 #     all_Fitness = GAresults[1]
@@ -326,9 +335,9 @@ for item in files:
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 2
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.txt")
+#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.txt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
-#copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
+copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET2.txt")
 
