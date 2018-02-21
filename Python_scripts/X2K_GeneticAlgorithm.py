@@ -32,7 +32,7 @@ def createPopulation(popSize, parameterLength):
         populationinit.append(''.join(choice(('0', '1')) for _ in range(parameterLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(1, 35)
+# population = createPopulation(10, 35)
 
 ###################################
 # 2. Calculate fitness
@@ -90,17 +90,39 @@ def calculateFitness(population, genCount='', fitness_method='simple'):
 ###################################
 # 3. Subset only the top fittest individuals
 ###################################
-import numpy as np
-def selectFittest(topNum, population, genCount='', fitness_method='simple'):
+
+def selectFittest(topNum, population, genCount='', fitness_method='target-adjusted overlap', selectionMethod='Fitness-proportional'):
+    import numpy as np
     calcFitness_output = calculateFitness(population, genCount, fitness_method)
     populationFitness = calcFitness_output[0]
     average_PPI_size = calcFitness_output[1]
-    # Find indices of fittest
-    fitnessIndices  = sorted(range(len(populationFitness)), key=lambda i: populationFitness[i])[-topNum:]
-    fittest = list(np.array(population)[fitnessIndices])
-    # Get Fitness of fittest
-    fittestFitness = list(np.array(populationFitness)[fitnessIndices])
-    print("Top fitnesses:  "+str(fittestFitness))
+    if selectionMethod == 'Fitness-proportional':
+        # Find indices of fittest
+        fitnessIndices  = sorted(range(len(populationFitness)), key=lambda i: populationFitness[i])[-topNum:]
+        fittest = list(np.array(population)[fitnessIndices])
+        # Get Fitness of fittest
+        fittestFitness = list(np.array(populationFitness)[fitnessIndices])
+        print("Top fitnesses:  " + str(fittestFitness))
+    elif selectionMethod == 'Tournament':
+        import random; import operator
+        dataDict = {z[0]:list(z[1:]) for z in zip( list(range(0,len(population)+1)), population, populationFitness,average_PPI_size)}
+        subsetSize = int( len(population) / topNum )
+        keyList = list(dataDict.keys())
+        # Break dict into equal subsets, and get individual with top fitness from each subset
+        for num in topNum:
+            random.shuffle(keyList)
+            keySubset = keyList[:subsetSize]
+            dictSubset = {k: dataDict[k] for k in (keySubset)}
+            # Get top val
+            dicts
+            max(dictSubset.items(), key=operator.itemgetter(2))[0]
+            # Remove keys from list to make sure they don't get repeated
+            keyList = list( set(keyList) - set(keySubset))
+
+
+
+
+
 
     return fittest, fittestFitness, populationFitness, average_PPI_size
 
@@ -231,7 +253,7 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
 
 
 GAresults = GAfunction(initialPopSize=5, parameterLength=35, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
-                       fitness_method='L1000_DRH - RankBasedOrder')
+                       fitness_method='Rank-Weighted Mean')
 
 
 allPopulations = GAresults[0]# Get all populations
@@ -287,19 +309,21 @@ from shutil import copyfile
 dir_name = "data/testgmt/"
 files = os.listdir(dir_name)
 for item in files:
-    if item.endswith(".txt"):
+    if item.endswith(".txt") or item.endswith(".gmt"):
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 1
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.txt")
+copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
+# Down genes only (performs MUCH better than up genes, which consistently return 0% of all kinase perturbation experiments in GEO)
+#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt", "data/testgmt/Kinase_Perturbations_from_GEO_up.gmt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
-copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt")
+#copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
 
 ## Run GA with Subset1
-FITNESS_METHOD='L1000_DRH - RankBasedOrder'
-GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=35, numberOfGenerations=10, topNum=10, childrenPerGeneration=90, crossoverPoints=7, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
+FITNESS_METHOD='Rank-Weighted Mean'
+GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=35, numberOfGenerations=50, topNum=10, childrenPerGeneration=90, crossoverPoints=7, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
 
 
@@ -335,9 +359,9 @@ for item in files:
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 2
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.txt")
+copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
-copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
+#copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET2.txt")
 
@@ -362,7 +386,7 @@ for generation in allFitnesses_Subset2:
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GA_results.100pop.10gen.GEO.npy'
+GA_output_name = 'GA_results_GEO.RankWeightedMean.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):
@@ -401,5 +425,3 @@ plt.plot(x, y_s2, 'gx--', markersize=7, label="Untrained Results")
 plt.xlabel('Generation')
 plt.ylabel('Peak Fitness')
 plt.legend(loc='lower right')
-
-

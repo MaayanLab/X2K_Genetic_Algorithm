@@ -86,7 +86,7 @@ def X2K_fitness(binary, fitness_method='simple'):
             PPI_dbs.append(all_PPI_databases[ind])
     PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    PPI_pathLength = {"0": 1, "1": 2}
+    PPI_pathLength = {"0": 1, "1": 1}
 
     ############ KEA OPTIONS ############
     KINASE_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
@@ -219,212 +219,193 @@ def X2K_fitness(binary, fitness_method='simple'):
 
     time.time() - start_time
 
+
+
+
+
     ##################### FITNESS CALCULATION/VALIDATION #####################
 
-    # LINCS_L1000 Kinase perturbations
-    # kinase_perturbations_up = directory+"Validation/Perturbation_Data/L1000/LINCS_L1000_Kinase_Perturbations_up.txt"
-    # kinase_perturbations_dn = directory+"Validation/Perturbation_Data/L1000/LINCS_L1000_Kinase_Perturbations_down.txt"
+    def detectValidationData():
+        import os
+        gmtName = os.listdir("data/testgmt")
+        if gmtName[0].startswith('Kinase_Perturbations_from_GEO'):
+            dataType = 'GEO'
+        elif gmtName[0].startswith('Chem_combo_DRH'):
+            dataType = 'L1000.DRH'
+        elif gmtName[0].startswith('LINCS-L1000_KINOMEscan'):
+            dataType = 'L1000.KINOMEscan'
+        else:
+            print("Couldn't detect Validation Data type.")
+        return(dataType)
+    dataType = detectValidationData()
+
+    def parseTargetsPredicted(line, dataType):
+        import re
+        if dataType == 'GEO':
+            kinaseTargets = line.split(",")[0].split("_")[0]
+            predictedKinases = line.split(",")[1:]
+        elif dataType == 'L1000.DRH':
+            kinaseTargets = line.split("_")[3].strip("[").strip("]").split("|")
+            predictedKinases = line.split(",")[1:]
+        elif dataType == 'L1000.KINOMEscan':
+            kinaseTargets = re.split(r'\t+', line)[0].split("_")[3].strip("[").strip("]").split("|")
+            predictedKinases = re.split(r'\t+', line)[1:]
+        else:
+            print("Unrecognized Validation Data Structure")
+        # If it's just a string, convert to list
+        if type(kinaseTargets)==str:
+            kinaseTargets = [kinaseTargets]
+        if type(predictedKinases)==str:
+            predictedKinases = [predictedKinases]
+        # Strip away any lingering \n
+        if kinaseTargets != []:
+            kinaseTargets[-1] = kinaseTargets[-1].strip()
+        if predictedKinases != []:
+            predictedKinases[-1] = predictedKinases[-1].strip()
+        return( [kinaseTargets, predictedKinases] )
 
 
-    # [1] CREEDS_ManualDrugs_DRH validation
-    # Get list of predicted genes
-    # import re
-    # with open(directory+"output/kea_out.txt") as KEA_output,\
-    #         open(directory+"Validation/Drug-Target_Data/Drug Repurposing Hub/Repurposing_Hub_export.txt") as DRH_validation, \
-    #         open(directory+"Validation/Perturbation_Data/CREEDS/CREEDS_metadata_single_drug_perturbations-v1.0.csv") as CREEDS_manualDrugs_meta:
-    #     validation_report = 0  # list of strings, to be summed together and divided by length of list to get fitness scores
-    #     kea_predicted_kinases = []
-    #
-    #     for lineMeta in CREEDS_manualDrugs_meta:
-    #         print(lineMeta)
-    #
-    #
-    #     for KEA_line in KEA_output:
-    #         KEA_rowName = KEA_line.split(",")[0].split(";")[1][:-7].upper() # Get row name
-    #         KEA_genes = KEA_line.split(",")[1:]
-    #         # Find the matching line in
-    #         for DRH_line in DRH_validation:
-    #             if re.split(r'\t+', DRH_line)[0].upper() == KEA_rowName:
-    #                 print("Found it!")
-    #                 validation_report = validation_report + 1
-    #             else: print("Nope...")
-    #     KEA_output.close()
-    #     DRH_validation.close()
-
-
-    # [2] LINCS1000 KINASE PERTURBATIONS: Presence/absence
-    if fitness_method == 'simple':
+    # [1] Simple Presence/absence fitness:
+    ## Percentage of experiments whose target kinase(s) were in the predicted kinases.
+    # Makes the most sense when there's only one target, so it's consisent across experiments.
+    if fitness_method == 'target-adjusted overlap':
         print("Calculating 'presence/absence' fitness...")
         with open (directory+"output/kea_out.txt") as KEA_output:
-            lineCount = 0
-            kinases_recovered = []
-            kinases_missed = []
+            KEA_lines = KEA_output.readlines()
+            scaledOverlapScores=[]
 
-            for line in KEA_output:
-                kinaseName = line.split(",")[0].split("_")[0]
-                predictedKinases = line.split(",")[1:]
+            for line in KEA_lines:
+                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
                 if predictedKinases != []:
                     predictedKinases[-1] = predictedKinases[-1].strip()
                 # Create lists of recovered and missed kinases
-                if kinaseName in predictedKinases:
-                    kinases_recovered.append(kinaseName)
-                    #print("YAAAsss Queen!")
-                else:
-                    kinases_missed.append(kinaseName)
-                    #print("Not so much...")
-                lineCount += 1
+                overlappingKinases = list( set(targetKinases) & set(predictedKinases) )
+                scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases) )
+
             # Calculate individual's  fitness score
-            if len(kinases_recovered) > 0:
-                fitness_score = len(kinases_recovered) / lineCount * 100 # Number of kinases recovered over the total number of instances x 100
-            else:
-                fitness_score = 0
-            KEA_output.close()
+            fitness_score = sum(scaledOverlapScores) / len(scaledOverlapScores)
             print("Individual's fitness = " + str(fitness_score))
 
 
-
-
-    # [3] LINCS1000 KINASE PERTURBATIONS: Rank-weighted fitness
-    if fitness_method == 'rank-weighted':
-        print("Calculating 'rank-weighted' fitness...")
+    # [2] Rank-weighted fitness
+    ## Weights fitness according to 1) the number of (unranked) targetKinases recovered
+    #### and 2) the rank of each Kinase after removing all other targetKinases from the predictedKinases list (to prevent never reaching 1)
+    ## Scale from 0 (no targetKinases recovered) to 1 (all targetKinases recovered at the top of the list in any order)
+    ## Developed by Brian M. Schilder
+    if fitness_method == 'Rank-Weighted Mean':
+        print("Calculating <"+fitness_method+"> fitness...")
         with open(directory + "output/kea_out.txt") as KEA_output:
-            lineCount = 0
-            kinases_recovered = []
-            kinases_missed = []
-            rankedScores = []
-
-            for line in KEA_output:
-                kinaseName = line.split(",")[0].split("_")[0]
-                predictedKinases = line.split(",")[1:]
-                # As long as the kinase list is not blank, get rid of \n in last item
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Create lists of recovered and missed kinases
-                if kinaseName in predictedKinases:
-                    rankedScores.append( (len(predictedKinases) - predictedKinases.index(kinaseName)) / len(predictedKinases))
-                    kinases_recovered.append(kinaseName)
-                else:
-                    rankedScores.append(0)
-                    kinases_missed.append(kinaseName)
-                lineCount += 1
-            # Calculate individual's  fitness score
-            if len(kinases_recovered) > 0:
-                temp_score = sum(rankedScores) / len(rankedScores)
-                fitness_score = temp_score / KEA_topKinases
-
-            else:
-                fitness_score = 0
-            KEA_output.close()
-            print("Individual's fitness = " + str(fitness_score))
-
-    if fitness_method == 'LINCS_L1000 + DrugRepurposingHub (adjustedScore)':
-        print("Calculating"+fitness_method+"fitness...")
-        with open(directory + "output/kea_out.txt") as KEA_output:
-            lineCount = 0; kinases_recovered = []; kinases_missed = []; adjustedScores = []
-            KEA_out = KEA_output.readlines()
-            #line = "CPC005_PC3_24H-indirubin-10.0_[CDK1|CDK5|GSK3A]_up		USP15	DUSP6	YIPF	IDUA	CHRNA5	SYNRG	AURKA	IFT122	PHKA	GAL	PTMA	IDS	REEP4	HMOX	NPHP4	RREB	ATP5SL"
-            for line in KEA_out:
-                kinaseTargets = line.split("_")[3].strip("[").strip("]").split("|")
-                predictedKinases = line.split(",")[1:]
-                # As long as the kinase list is not blank, get rid of \n in last item
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Create lists of recovered and missed kinases
-                kinases_recov = []; kinase_miss = []
-                for target in kinaseTargets:
-                    if target in predictedKinases:
-                        kinases_recov.append(target)
+            KEA_lines = KEA_output.readlines()
+            tkRankRatios_avgs = []
+            for line in KEA_lines:
+                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+                # Repeat for each targetKinase
+                tkRankRatios=[]
+                for tk in targetKinases:
+                    # Remove any other targetKinases form predictedKinases list
+                    if len(targetKinases)>1:
+                        predictedSubset = list( set(predictedKinases)- (set(targetKinases) - set([tk])) )
                     else:
-                        kinase_miss.append(target)
-                # The adjustedScore is the percentage of targets that were captured by KEA for a given experiment (since some drugs have multiple targets and this creates more chances for a target to be discovered)
-                if len(kinases_recov)>0:
-                    adjustedScores.append( len(kinases_recov)/ len(kinaseTargets))
-                    kinases_recovered.append(",".join(kinases_recov))
-                else:
-                    adjustedScores.append(0) # Make sure you append a 0 if it missed all kinases
-                    kinases_missed.append(",".join(kinase_miss))
-                lineCount += 1
-            # Calculate individual's  fitness score
-            if len(kinases_recovered) > 0:
-                fitness_score = sum(adjustedScores) / len(adjustedScores)*100  # Number of kinases recovered over the total number of instances x 100
-            ## Workaround to limit PPI size:
-            # elif average_PPI_size > 100:
-            #     fitness_score = 0
-            else:
-                fitness_score = 0
-            KEA_output.close()
-            print("Individual's fitness = " + str(fitness_score))
-
-
-
-    if fitness_method == 'LINCS_L1000 + KINOMEscan (adjustedScore)':
-        print("Calculating"+fitness_method+"fitness...")
-        import Python_scripts.rbo as rbo
-
-        with open(directory + "output/kea_out.txt") as KEA_output:
-            lineCount = 0; kinases_recovered = []; kinases_missed = []; adjustedScores = []
-            KEA_out = KEA_output.readlines()
-            #line = "LJP009_PC3_24H-sunitinib-1.11_[MAPK7|TNK2|MATK|CDK5|TSSK1B|MKNK2|PIP5K1A|MAP2K6|NTRK3|MAP3K4|PLK2|PTK6|MYO3B|MAPK10|PRKCQ|NEK7|CIT|MKNK1|TIE1|RIOK3|MARK4|BRSK1|PDPK1|CDK4|MAP3K9|MET|SIK1|EPHB4|MYO3A|DDR2|AKT2|DCLK2|IGF1R|BMPR1B|EPHA7|MAPK9|PAK6|PIM3|RPS6KA6|DYRK1B|EGFR|PAK4|BTK|EPHA3|FGFR4|RIPK4|SRC|DDR1|SgK110|LTK|AURKA|MAP2K3|CDK18|CAMKK2|CAMK2B|NEK2|MAP3K15|MAP3K11|CDPK1|PKN2|DSTYK|STK35|EPHA5|JAK3|MARK1|CDK17|BRSK2|CDKL2|FER|WEE1|ABL2|EPHB6|CAMK1|STK38L|EPHA6|FES|IRAK3|CSNK1G1|CSNK2A1|CAMK4|TAOK1|HCK|MGC42105|TLK1|PKN1|MAP2K4|CAMK2G|DYRK2|TNK1|TYK2|RPS6KA1|EIF2AK2|PAK7|SNRK|LATS1|IKBKE|ERN1|FGFR3|NTRK2|RPS6KA3|SIK2|BMPR2|FGFR2|CSNK1A1L|FRK|OXSR1|FGFR1|FYN|JAK1|CHUK|CAMK1D|HUNK|INSR|MUSK|EPHB1|ICK|LATS2|ROCK1|CAMK1G|PTK2|INSRR|RPS6KA2|CAMK2D|RPS6KA4|CAMKK1|JAK2|MARK3|STK38|PRPF4B|AURKB|PRKD2|DCLK1|RIPK1|MELK|MST4|CDK7|TLK2|ANKK1|MARK2|PRKD1|CHEK1|GRK1|RPS6KA5|STK25|MYLK|PRKD3|FGR|LYN|CDK14|SRPK1|STK16|ABL1|CSNK1G3|LCK|AURKC|MAP3K3|SGK3|TAOK3|DYRK1A|MAST1|SBK1|PLK4|SRPK2|EIF2AK4|GRK7|MAP4K3|ALK|CSNK2A2|HIPK4|DAPK2|CDK16|NUAK2|GRK4|MAP4K4|ROCK2|STK39|MAP2K1|DAPK1|TBK1|YES1|CSNK1G2|DCLK3|STK17B|MAP2K2|MAP3K12|NTRK1|CSNK1A1|MAP3K13|LRRK2|MAP3K7|PRKAA2|pknB|PTK2B|CAMK2A|IRAK4|BLK|STK24|TTK|SRPK3|MAP3K2|STK3|SLK|HIPK1|FLT4|MYLK2|RIOK2|TYRO3|NUAK1|RPS6KB1|MAP2K5|ULK3|HIPK3|MAP4K5|PIP4K2B|STK11|RIOK1|MAP4K2|HIPK2|CLK4|MINK1|MERTK|TNIK|MYLK3|ULK1|CLK1|DAPK3|CLK2|KIT|GAK|PRKAA1|STK10|STK4|STK33|YSK4|MAP4K1|PAK3|CSNK1D|MYLK4|IRAK1|CSNK1E|ITK|RET|ULK2|AAK1|CHEK2|AXL|PHKG2|BMP2K|PHKG1|CSF1R|FLT1|FLT3|KDR|STK17A|PDGFRA|PDGFRB]_up		HOMER	DKK	PAWR	TM4SF	QKI	CXCL13	NUP98	ID	UBE2S	SPINT2	IL8	MT1H	IL6ST	GAS6	NNMT	CHIC2	SERPINE	AURKA	CXCL2	NEDD9	RELB	LAPTM4B	SOCS2	DNAJB6	TBL1X	MAGEA6	PDLIM5	ARHGEF12	POSTN	PLK	DAPK	FAM46A	RFTN	PLK2	HDGFRP3	ADAM	COBL	LEPREL	KCTD5	EIF2S3	SERPINB9	NR4A3	NR4A2	RPS26	RAB15	DLC	HIST1H2BG	CRYAB	FOLR	GPM6B	TYRP	HIST1H2BK	IRS2	THBS	NR3C	NTS	PTPLA	PPM1H	MICAL2	BAG2	MFAP3L"
-
-            import re
-            for line in KEA_out:
-                kinaseTargets = re.split(r'\t+', line)[0].split("_")[3].strip("[").strip("]").split("|")
-                predictedKinases = re.split(r'\t+', line)[1:]
-                # As long as the kinase list is not blank, get rid of \n in last item
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Create lists of recovered and missed kinases
-                kinases_recov = []; kinase_miss = []
-                ## Need to take into the account:
-                ### 1. The ranking of the KINOMEscan target
-                ### 2. The ranking of the KEA predicted kinase
-                for i,target in enumerate(kinaseTargets):
-                    if target in predictedKinases:
-                        kinases_recov.append(target)
+                        predictedSubset = predictedKinases
+                    # If targetKinase is in predictedKinases find 1/rank
+                    if tk in predictedSubset:
+                        rankRatio = (len(predictedSubset)-predictedSubset.index(tk)) / len(predictedSubset)
+                        # Add a power function to make top-weighted (lower ranks count exponentially less)
+                        topWeighted_rankRatio = pow(rankRatio, 2)
+                        tkRankRatios.append(topWeighted_rankRatio)
                     else:
-                        kinase_miss.append(target)
-                # The adjustedScore is the percentage of targets that were captured by KEA for a given experiment (since some drugs have multiple targets and this creates more chances for a target to be discovered)
-                if len(kinases_recov)>0:
-                    adjustedScores.append( len(kinases_recov)/ len(kinaseTargets))
-                    kinases_recovered.append(",".join(kinases_recov))
-                else:
-                    adjustedScores.append(0) # Make sure you append a 0 if it missed all kinases
-                    kinases_missed.append(",".join(kinase_miss))
-                lineCount += 1
-            # Calculate individual's  fitness score
-            if len(kinases_recovered) > 0:
-                fitness_score = sum(adjustedScores) / len(adjustedScores)*100  # Number of kinases recovered over the total number of instances x 100
-            else:
-                fitness_score = 0
-            KEA_output.close()
-            print("Individual's fitness = " + str(fitness_score))
+                        tkRankRatios.append(0)
+                # if sum(tkRankRatios) !=0:
+                #     # Divide by the number of targetKinases to adjust for the number of possible hits
+                #     tkRankRatios_avgs.append( sum(tkRankRatios) / len(targetKinases) )
+                # else:
+                #     tkRankRatios_avgs.append(0)
+            fitness_score = sum(tkRankRatios) / len(tkRankRatios)
 
-    if fitness_method == 'L1000_DRH - RankBasedOrder':
-        print("Calculating"+fitness_method+"fitness...")
+        print("Individual's fitness = " + str(fitness_score))
+
+
+    if fitness_method == "Wilcoxon rank-sum":
+        print("Calculating <" + fitness_method + "> fitness...")
+        with open(directory + "output/kea_out.txt") as KEA_output:
+            KEA_lines = KEA_output.readlines()
+            stats=[]
+            import scipy.stats as ss
+            for line in KEA_lines:
+                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+                predictedBits=[]
+                targetBits = list('1'*len(targetKinases))
+                for gene in predictedKinases:
+                    if gene in targetKinases:
+                        predictedBits.append(1)
+                    else:
+                        predictedBits.append(0)
+                wrm = ss.ranksums(targetBits, predictedBits)
+                stats.append(wrm.statistic)
+        fitness_score = sum(stats) / len(stats)
+        print("Individual's fitness = " + str(fitness_score))
+
+    # [3] Rank Biased Overlap
+    ## From the following blog post/package: https://ragrawal.wordpress.com/2013/01/18/comparing-ranked-list/
+    if fitness_method == 'Rank-Biased Overlap':
+        print("Calculating "+fitness_method+" fitness...")
         from Python_scripts.rbo import rbo
 
-        with open(directory + "output/kea_out.txt") as KEA_output:
+        with open(directory+"output/kea_out.txt") as KEA_output:
             rboScores=[]
             KEA_out = KEA_output.readlines()
             #line = "CPC005_PC3_24H-indirubin-10.0_[CDK1|CDK5|GSK3A]_up		USP15	DUSP6	YIPF	IDUA	CHRNA5	SYNRG	AURKA	IFT122	PHKA	GAL	PTMA	IDS	REEP4	HMOX	NPHP4	RREB	ATP5SL"
             for line in KEA_out:
-                # Set up your two lists (targets and predicted)
-                kinaseTargets = line.split("_")[3].strip("[").strip("]").split("|")
-                predictedKinases = line.split(",")[1:]
+                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
                 # As long as the kinase list is not blank, get rid of \n in last item
                 if predictedKinases != []:
                     predictedKinases[-1] = predictedKinases[-1].strip()
-
-                # Get the simple intersection between the two lists
-                ## intersection = [x for x in kinaseTargets if x in predictedKinases]
-                ## percentOverlap = len(intersection)/len(kinaseTargets)*100
+                # Conduct RankedBasedOrder statistic (0-1 score)
                 if len(predictedKinases)>0:
-                    # Conduct RankedBasedOrder statistic
-                    rboResults = rbo(kinaseTargets, predictedKinases, .9)
+                    rboResults = rbo(targetKinases, predictedKinases, .9)
                     rboScores.append(rboResults['res'])
                 else: rboScores.append(0)
                 # Get the average RBO score
                 fitness_score = sum(rboScores) / len(rboScores)
+
+            print("Individual's fitness = " + str(fitness_score))
+
+        # [4] Modified RankBiasedOverlap
+        ## RBO normally assumes both lists are ranked. But in some cases, they're not.
+        # So to account for this I'm repeating the RBO for each kinaseTarget individually and then taking the average RBO score.
+        ## Developed by Brian M. Schilder
+        if fitness_method == 'modified RankBiasedOverlap':
+            from Python_scripts.rbo import rbo
+            print("Calculating <" + fitness_method + "> fitness...")
+            with open(directory + "output/kea_out.txt") as KEA_output:
+                KEA_lines = KEA_output.readlines()
+                rankWeightedScores = []
+                for line in KEA_lines:
+                    targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+                    scaledRanks = [];
+                    kinaseHits = 0
+
+                    for tk in targetKinases:
+                        # Get the list of kinaseTargets other than the one being assessed
+                        ## But ONLY if there's more than one kinase
+                        if len(targetKinases) > 1:
+                            otherTargets = set()
+                        else:
+                            otherTargets = set(targetKinases) - set([tk])
+                        # Remove these other kinaseTargets from the predictedKinase list
+                        predictedSubset = set(predictedKinases) - otherTargets
+                        # Conduct RBO with the selected targetKinase
+                        rboResults = rbo(tk, list(predictedSubset), p=.00000000000000000001)
+                        rboScores.append(rboResults['res'])
+                    # Get the average
+                    if len(scaledRanks) > 0:
+                        rankCorrection = sum(scaledRanks) / len(scaledRanks)
+                    else:
+                        rankCorrection = 0.0
+                        # Calculate rankWeighted score
+                        rankWeightedScores.append((rankCorrection * kinaseHits) / len(targetKinases))
+                # Calculate rank-weighted fitness
+                fitness_score = sum(rankWeightedScores) / len(rankWeightedScores)
 
             print("Individual's fitness = " + str(fitness_score))
 

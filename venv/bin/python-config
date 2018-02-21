@@ -1,4 +1,4 @@
-#!/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/venv/bin/python
+#!/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/venv1/bin/python
 
 import sys
 import getopt

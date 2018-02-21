@@ -52,7 +52,7 @@ with open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_fro
 
 
 
-directory = "/Users/Schilder/Desktop/x2k/"
+directory = "/Users/Schilder/Desktop/X2K_Genetic_Algorithm/"
 # Subset testgmt file for overfitting test
 def split_testgmt(testPercent, input, output1, output2, writeType="w", up_dn="dn"):
     with open(directory + "Validation/Perturbation_Data/"+input) as testgmt,\
@@ -80,7 +80,7 @@ split_testgmt(testPercent=80, \
               output2="GEO/Kinase_Perturbations_from_GEO_SUBSET.20per.txt", \
               up_dn="up")
 split_testgmt(testPercent=80, \
-              input="GEO/Kinase_Perturbations_from_GEO_up_noVals.txt", \
+              input="GEO/Kinase_Perturbations_from_GEO_dn_noVals.txt", \
               output1="GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", \
               output2="GEO/Kinase_Perturbations_from_GEO_SUBSET.20per.txt", \
               up_dn="dn", writeType="a")
@@ -88,12 +88,12 @@ split_testgmt(testPercent=80, \
 
 # Split LINCS L1000 chem pert data and then combine up/dn files
 split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInihibitors.txt",\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
               output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
               output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
               up_dn="up")
 split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInihibitors.txt",\
               output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
               output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
               up_dn="dn", writeType="a")

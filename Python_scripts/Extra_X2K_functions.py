@@ -1,4 +1,6 @@
 
+
+
 # Tells you the parameters for a given binary string
 def tell_parameters(binary, verbose=True):
     # Readjust bit parameters if length of binary string changes
@@ -36,7 +38,7 @@ def tell_parameters(binary, verbose=True):
             PPI_dbs.append( all_PPI_databases[ind] )
     PPI_databases = ",".join(PPI_dbs)
     ## Path length
-    PPI_pathLength = {"0":1, "1":2} # CHANGE BACK AFTER THIS RUN
+    PPI_pathLength = {"0":1, "1":1} # CHANGE BACK AFTER THIS RUN
 
 
     ############ KEA OPTIONS ############
@@ -380,3 +382,51 @@ def parameterStats(GAresults, writeExcel='No'):
 
 # parameter_AOV_results = parameterStats(GAresults, True)
 
+
+try:
+    del X2K_fitness
+except NameError:
+    pass
+from Python_scripts.X2K_Pipeline import X2K_fitness
+
+fitnessDictionary = {}
+ppiSizeDictionary = {}
+def calculateFitness(population, genCount='', fitness_method='simple'):
+    indCount = 1
+    fitness = []
+    avg_PPI_size = []
+    for i in range(len(population)):
+        print()
+        print("****** Generation "+str(genCount)+"  ::  Individual " + str(indCount) + " ******")
+        print(population[i])
+        # Delete .DS_Store files
+        import os
+        print("(Deleting .DS_Store files...)")
+        for root, dirs, files in os.walk(os.getcwd()):
+            for file in files:
+                if file.endswith(".DS_Store"):
+                    print(os.path.join(root, file))
+                    os.remove(os.path.join(root, file))
+        # Calculate fitness (ONLY if it hasn't been previously calculated)
+
+        if population[i] not in fitnessDictionary:
+            # FITNESS
+            #new_fitness = sum(map(int, population[i])) # Test fitness
+            X2K_output = X2K_fitness(population[i],fitness_method)
+            new_fitness = X2K_output[0]  # Real fitness
+            fitness.append(new_fitness)
+            # AVERAGE PPI SIZE
+            new_PPIsize = X2K_output[1]
+            avg_PPI_size.append(new_PPIsize)
+            # Store calculated values in dictionaries
+            fitnessDictionary[population[i]] = new_fitness
+            ppiSizeDictionary[population[i]] = new_PPIsize
+            print("PPI Size = " +str(new_PPIsize))
+        else:
+            fitness.append( fitnessDictionary[population[i]] )
+            avg_PPI_size.append(ppiSizeDictionary[population[i]])
+            print("{Using previously calculated fitness: " + str( fitnessDictionary[population[i]] ) + "}")
+            print("PPI Size = " + str(ppiSizeDictionary[population[i]]))
+        indCount += 1
+
+    return fitness, avg_PPI_size
