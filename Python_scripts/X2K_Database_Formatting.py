@@ -2,10 +2,11 @@
 
 import pandas as pd
 import os
+import googleapiclient
+
 
 os.getcwd()
 os.chdir("../")
-
 
 # Progress bar for for loop
 def percentComplete(loopLength, iteration):
@@ -54,7 +55,15 @@ with open("X2K_Genetic_Algorithm/data/KEA/kea_ranks.txt") as KEA_kinases:
 kinaseCom_HsapUpdated = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Hsap_updated.xls")
 kinaseCom_Hsap = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Hsap.xls")
 kinaseCom_Mmus = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Mmus.xls")
-kinaseCom = list(set(kinaseCom_HsapUpdated.Name) | set(kinaseCom_Hsap.Name) | set(kinaseCom_Mmus))
+kinaseCom_Mmus = kinaseCom_Mmus.rename(index=str, columns={"Gene Name": "Name"})
+kinaseCom_Mmus.columns
+
+
+kinaseGroups = pd.concat([ kinaseCom_HsapUpdated[["Name","Group","Family"]],\
+          kinaseCom_Hsap[["Name","Group","Family"]],\
+          kinaseCom_Mmus[["Name","Group","Family"]] ])
+
+kinaseCom = list(set(kinaseCom_HsapUpdated.Name) | set(kinaseCom_Hsap.Name) | set(kinaseCom_Mmus.Name))
 ## Merge lists
 for k in kinaseCom:
     if k not in KINASES:
@@ -621,15 +630,15 @@ mitabToGMT(mouse_human_df, "X2K_Databases/KINASE/iREF/Processing/iREF_02-2018_Mo
 mitabToGMT(mouse_human_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt",
            subsetList="", mergeSpecies=True)
 
+
 # -----------iPTMnet-----------
 with open("X2K_Databases/KINASE/iPTMnet/Processing/readme.txt") as file:
     readme = file.readlines()
 # Data
 score = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/score.txt", header=None)
 score.columns = ["substrate_AC", "site", "enzyme_AC", "ptm_type", "score"]
-import numpy as np
-
 score = score.dropna(subset=["enzyme_AC"])
+score.groupby("enzyme_AC").mean()
 score.head()
 # Protein metadata
 ptm = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/ptm.txt", header=None)
@@ -643,17 +652,31 @@ protein.columns = ["UniProtAC", "UniProtID", "protein_name", "genename", "organi
 protein.head()
 
 # Convert substrates
-substrateGenes = [];
-enzymeGenes = [];
-Scores = [];
-PMIDS = [];
-Species = []
 substrateDict = dict(zip(ptm.substrate_AC, zip(ptm.substrate_genename, ptm.pmid, ptm.organism)))
 enzymeDict = dict(zip(ptm.enzyme_AC, zip(ptm.enzyme_genename, ptm.organism)))
+# Make kinase group/family dictionary
+kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
+# Append synonyms as entries in kgroupDict
+geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)
+for i,row in score.iterrows():
+    enz = row.enzyme_AC
+    if enz in geneSyn[0] and enz in kgroupDict.keys():
+        syns = list(geneSyn[geneSyn[0]==enz][1].values)
+        for s in syns:
+            kgroupDict[s] = kgroupDict[enz]
+
+# iterate over all interactions in iPTMnet
+substrateGenes=[]; enzymeGenes=[]; Scores=[]; PMIDS = []; Species=[]; KinaseGroup=[]; KinaseFamily=[]
 for i, row in score.iterrows():
     if row.substrate_AC in substrateDict.keys() and row.enzyme_AC in enzymeDict.keys():
         substrateGenes.append(substrateDict[row.substrate_AC][0])
         enzymeGenes.append(enzymeDict[row.enzyme_AC][0])
+        if enzymeDict[row.enzyme_AC][0] in kgroupDict.keys():
+            KinaseGroup.append( kgroupDict[enzymeDict[row.enzyme_AC][0]][0] )
+            KinaseFamily.append( kgroupDict[enzymeDict[row.enzyme_AC][0]][1] )
+        else:
+            KinaseGroup.append("NA")
+            KinaseFamily.append("NA")
         Scores.append(row.score)
         PMIDS.append(substrateDict[row.substrate_AC][1])
         Species.append(enzymeDict[row.enzyme_AC][1])
@@ -661,20 +684,33 @@ for i, row in score.iterrows():
         print(">Can't find protein<")
 
 convertedScores = pd.DataFrame(np.column_stack([substrateGenes, \
-                                                ["NA"] * len(Scores), ["NA"] * len(Scores), ["NA"] * len(Scores),
-                                                ["NA"] * len(Scores), \
+                                                ["NA"]*len(Scores), ["NA"]*len(Scores), ["NA"]*len(Scores), ["NA"]*len(Scores), \
                                                 enzymeGenes, \
-                                                ["NA"] * len(Scores), ["NA"] * len(Scores), ["NA"] * len(Scores),
-                                                ["NA"] * len(Scores), \
+                                                ["NA"]*len(Scores), ["NA"]*len(Scores), KinaseGroup, KinaseFamily, \
                                                 Species, Scores, PMIDS]), \
-                               columns=["substrateGenes", "-", "-", "-", "-", "enzymeGenes", "-", "-", "-", "-",
-                                        "Species", "Scores", "PMIDS"])
+                               columns=["substrateGenes", "-", "-", "-", "-", "enzymeGenes",\
+                                        "-", "-", "KinaseGroup", "KinaseFamily","Species", "Scores", "PMIDS"])
 convertedScores.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt", sep="\t")
 
 convertedScores = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt")
 
 # Subset humans and mice
-mhScores = convertedScores[
-    (convertedScores.Species == "Homo sapiens (Human)") | (convertedScores.Species == "Mus musculus (Mouse)")]
-mhScores['substrateGenes'] = map(lambda x: str(x).upper(), mhScores['substrateGenes'])
+mhScores = convertedScores[(convertedScores.Species == "Homo sapiens (Human)") | (convertedScores.Species == "Mus musculus (Mouse)")]
+mhScores['Species'] = mhScores['Species'].map({"Homo sapiens (Human)":"Human","Mus musculus (Mouse)":"Mouse"})
+# Make genes all uppecase
+mhScores['substrateGenes'] = mhScores['substrateGenes'].str.upper()
+mhScores['enzymeGenes'] = mhScores['enzymeGenes'].str.upper()
+mhScores.shape
+# Remove entries without PubMedIDs
+mhScores_pmids = mhScores.dropna(subset=["PMIDS"])
+mhScores_pmids.shape
 
+
+
+
+# Write iPTMnet PPI
+mhScores_final = mhScores_pmids.fillna("NA").iloc[:,2:]
+mhScores_final.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/iPTMnet-2018_Mouse-Human_PPI.txt", sep=" ", header=False, index=False)
+
+# Make GMT for KINASES
+kinaseScores = mhScores_pmids[mhScores_pmids.enzymeGenes.isin(KINASES)]
