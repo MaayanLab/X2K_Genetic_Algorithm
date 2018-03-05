@@ -1,4 +1,6 @@
-#RUIIUSNUFSDF TESTrer
+# ____________________________________________________________
+# ______________X2K Validation Data Reformatting______________
+# ____________________________________________________________
 
 directory = "/Users/Schilder/Desktop/x2k/"
 

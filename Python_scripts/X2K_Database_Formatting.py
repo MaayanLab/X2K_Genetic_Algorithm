@@ -2,7 +2,6 @@
 
 import pandas as pd
 import os
-import googleapiclient
 
 
 os.getcwd()
@@ -718,8 +717,8 @@ with open("X2K_Databases/KINASE/iPTMnet/iPTMnet-2018_Mouse-Human_KINASES.gmt","w
                 GMT.write(newName+"\t\t"+"\t".join(interactors)+"\n")
 
 
-# -----------PHOSPHOSITE-----------
-phos = pd.read_table("X2K_Databases/KINASE/Phosphosite/Processing/Phosphosite.Kinase_Substrate_Dataset.02-2018.txt", skiprows=[0,1,2])
+# -----------PHOSPHOSITE_PLUS-----------
+phos = pd.read_table("X2K_Databases/KINASE/PhosphositePlus/Processing/PhosphositePlus.Kinase_Substrate_Dataset.02-2018.txt", skiprows=[0,1,2])
 phos.head()
 noRXN = phos[(phos.IN_VIVO_RXN!="X") & (phos.IN_VITRO_RXN!="X")]
 noRXN.shape[0] # Just double checking that all kinase-substrate pairings have at least one kind of interaction
@@ -743,7 +742,7 @@ def getKinaseGroupAndFamily(kinaseList):
             results = ["NA","NA"]
     return results
 
-with open("X2K_Databases/KINASE/Phosphosite/Phosphosite-02-2018_Mouse-Human_KINASES.gmt","w") as PHOS:
+with open("X2K_Databases/KINASE/PhosphositePlus/PhosphositePlus-02-2018_Mouse-Human_KINASES.gmt","w") as PHOS:
     phosHM = phos[phos.KIN_ORGANISM.isin(["human","mouse"]) & phos.SUB_ORGANISM.isin(["human","mouse"])]
     for k in list(phosHM.GENE.unique()):
         phosSub = phosHM[phosHM.GENE==k]

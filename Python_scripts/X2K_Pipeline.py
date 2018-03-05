@@ -375,38 +375,19 @@ def X2K_fitness(binary, fitness_method='simple'):
         # So to account for this I'm repeating the RBO for each kinaseTarget individually and then taking the average RBO score.
         ## Developed by Brian M. Schilder
         if fitness_method == 'modified RankBiasedOverlap':
-            from Python_scripts.rbo import rbo
             print("Calculating <" + fitness_method + "> fitness...")
+            from Python_scripts.rboScore import getRBOScore
             with open(directory + "output/kea_out.txt") as KEA_output:
                 KEA_lines = KEA_output.readlines()
-                rankWeightedScores = []
+                rboScores=[]
                 for line in KEA_lines:
                     targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                    scaledRanks = [];
-                    kinaseHits = 0
-
-                    for tk in targetKinases:
-                        # Get the list of kinaseTargets other than the one being assessed
-                        ## But ONLY if there's more than one kinase
-                        if len(targetKinases) > 1:
-                            otherTargets = set()
-                        else:
-                            otherTargets = set(targetKinases) - set([tk])
-                        # Remove these other kinaseTargets from the predictedKinase list
-                        predictedSubset = set(predictedKinases) - otherTargets
-                        # Conduct RBO with the selected targetKinase
-                        rboResults = rbo(tk, list(predictedSubset), p=.00000000000000000001)
-                        rboScores.append(rboResults['res'])
-                    # Get the average
-                    if len(scaledRanks) > 0:
-                        rankCorrection = sum(scaledRanks) / len(scaledRanks)
-                    else:
-                        rankCorrection = 0.0
-                        # Calculate rankWeighted score
-                        rankWeightedScores.append((rankCorrection * kinaseHits) / len(targetKinases))
+                    print(line)
+                    if len(set(targetKinases).intersection(set(predictedKinases))) > 0:
+                        rboScores.append( getRBOScore(targetKinases, predictedKinases) )
+                    else: rboScores.append(0.0)
                 # Calculate rank-weighted fitness
-                fitness_score = sum(rankWeightedScores) / len(rankWeightedScores)
-
+                fitness_score = sum(rboScores) / len(rboScores)
             print("Individual's fitness = " + str(fitness_score))
 
     return fitness_score, average_PPI_size
