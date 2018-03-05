@@ -62,6 +62,7 @@ kinaseCom_Mmus.columns
 kinaseGroups = pd.concat([ kinaseCom_HsapUpdated[["Name","Group","Family"]],\
           kinaseCom_Hsap[["Name","Group","Family"]],\
           kinaseCom_Mmus[["Name","Group","Family"]] ])
+kinaseGroups.to_csv("X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv", header=True)
 
 kinaseCom = list(set(kinaseCom_HsapUpdated.Name) | set(kinaseCom_Hsap.Name) | set(kinaseCom_Mmus.Name))
 ## Merge lists
@@ -327,82 +328,61 @@ with open("X2K_Databases/TF/TF-LOF_Expression_GEO/Processing/TF-LOF_Expression_f
         if len(cleanGenes) >= minNumberInteractors:
             newFile.write(newName + "\t\t" + "\t".join(cleanGenes))
 
-# -----------CREEDS Manual Gene Perturbations -----------
-# Combine up and down kinases
-with open("X2K_Databases/KINASE/CREEDS_Kinases/Processing/manual_Kinase_Perturbations_from_GEO_up.txt") as K_up, \
-        open("X2K_Databases/KINASE/CREEDS_Kinases/Processing/manual_Kinase_Perturbations_from_GEO_down.txt") as K_dn, \
-        open("X2K_Databases/KINASE/CREEDS_Kinases/manual_Kinase_Perturbations_from_GEO.gmt", "w") as newFile:
-    K_dn_lines = K_dn.readlines()
-    for i, line in enumerate(K_up):
-        # Add Up
-        lineSp = line.split("\t")
-        name = lineSp[0]
-        DEGs = lineSp[2:]
-        newDEGS = []
-        for d in DEGs:
-            newDEGS.append(d.strip(",1.0"))
-        newFile.write(name + "-up" + "\t\t" + "\t".join(newDEGS) + "\n")
-        # Add Down
-        dnLine = K_dn_lines[i]
-        dnLineSp = dnLine.split("\t")
-        dnName = dnLineSp[0]
-        dnDEGs = dnLineSp[2:]
-        dnNewDEGS = []
-        for d in dnDEGs:
-            dnNewDEGS.append(d.strip(",1.0"))
-        newFile.write(dnName + "-dn" + "\t\t" + "\t".join(dnNewDEGS) + "\n")
 
+# -----------CREEDS Manual TF Perturbations-----------
 # Get just the TF experiments
 with open("X2K_Databases/General_Resources/CREEDS/Single_Gene_Perturbations_from_GEO_up.txt") as up, \
         open("X2K_Databases/General_Resources/CREEDS/Single_Gene_Perturbations_from_GEO_down.txt") as dn, \
-        open("X2K_Databases/TF/CREEDS_TF/manual_single_gene_perturbations_TF.txt", "w") as newGMT_TF:
+        open("X2K_Databases/manual_single_gene_perturbations_TF.txt", "w") as newGMT_TF:
     def reformatAndConvert(line, up_dn):
         lineSp = line.split("\t")
         name = lineSp[0].split(" ")
         gene = name[0]
-        species = name[2]
+        if "human" in name:
+            Species = "Human"
+        elif "mouse" in name:
+            Species = 'Mouse'
+        else:
+            Species = "UnknownSpecies"
+        newName = gene.upper() + '_' + "-".join(name[1:] + ["CREEDS-ManualSingleGenePerturbations"])+"_"+Species+"_" +up_dn
         ## Get rid of '1.0' ib DEGs
         DEGs = lineSp[2:][:-1]
         for g in DEGs:
-            DEGs[DEGs.index(g)] = g.strip(",1.0")
-        # Convert all genes
-        if species.upper() == 'HUMAN':
-            newGene = gene
-            DEGs_conv = DEGs
-        else:
-            newGene = geneConverter(gene, species)
-            DEGs_conv = []
-            for g in DEGs:
-                DEGs_conv.append(geneConverter(g, species))
-            DEGs_conv = list(filter(None, DEGs_conv))  # Remove any genes that couldn't be converted ("")
-        newLine = newGene + '_' + '_'.join(name[1:]) + up_dn + "\t\t" + "\t".join(DEGs_conv) + '\n'
+            DEGs[DEGs.index(g)] = g.strip(",1.0").upper()
+        newLine = newName + "\t\t" + "\t".join(DEGs) + '\n'
         return newLine
-
-
     # Run through each line of both up and dn files
     dnLines = dn.readlines()
     for i, line in enumerate(up):
         gene = line.split(" ")[0]
-        newGene = geneConverter(gene)
         # Include only the TF experiments
-        if newGene in TFs:
+        if gene in TFs:
             # Write Up line
-            newLineUp = reformatAndConvert(line, '-up')
+            newLineUp = reformatAndConvert(line, 'up')
             newGMT_TF.write(newLineUp)
             # Write Dn line
-            newLineDn = reformatAndConvert(dnLines[i], '-dn')
+            newLineDn = reformatAndConvert(dnLines[i], 'dn')
             newGMT_TF.write(newLineDn)
+# -----------CREEDS Manual Kinase Perturbations -----------
+# Combine up and down kinases
+with open("X2K_Databases/KINASE/CREEDS/Processing/manual_Kinase_Perturbations_from_GEO_up.txt") as K_up, \
+        open("X2K_Databases/KINASE/CREEDS/Processing/manual_Kinase_Perturbations_from_GEO_down.txt") as K_dn, \
+        open("X2K_Databases/KINASE/CREEDS/manual_Kinase_Perturbations_from_GEO.gmt", "w") as newFile:
+    K_dn_lines = K_dn.readlines()
+    for i, line in enumerate(K_up):
+        # Add Up
+        def modifyLine(line, direction):
+            lineSp = line.split("\t")
+            name = lineSp[0].split("_")
+            newName = name[0] +"_"+ "-".join(name[1:]+["CREEDS-ManualKinasePerturbations"])+"_UnknownSpecies"
+            DEGs = lineSp[2:]
+            newDEGS = []
+            for d in DEGs:
+                newDEGS.append(d.strip(",1.0"))
+            newFile.write(newName + "_"+ direction + "\t\t" + "\t".join(newDEGS))
+        modifyLine(line,"up")
+        modifyLine(K_dn_lines[i],"dn")
 
-with open("General_Resources/CREEDS/Manual_single_gene_perturbations-v1.0.csv") as CREEDS_auto_gene_CONV, \
-        open("Kinase_datasets/CREEDS_Kinases/CREEDS_manual_single_gene_pert_KINASES.txt", "w") as newFile:
-    for line in CREEDS_auto_gene_CONV:
-        lineSp = line.split('\t')
-        if type(lineSp) == str:
-            DEGS = lineSp[2:]
-        gene = lineSp[0].split('-')[0]
-        if gene in KINASES:
-            # newFile.write(line)
-            newFile.write()
 
 # -----------[2] BIOGRID -----------
 # XXXXXXXXX USE MOSHE'S  JUPYTER PIPELINE INSTEAD XXXXXXXXX
@@ -646,7 +626,7 @@ ptm.columns = ["ptm_type", "source", "substrate_AC", "substrate_genename", "orga
                "enzyme_genename", "note", "pmid"]
 # ptm = ptm[(ptm.organism=="Homo sapiens (Human)")|(ptm.organism==)] # Can subset by species
 ptm.head()
-# Protein metedata 2?
+# Protein metadata 2?
 protein = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/protein.txt", header=None)
 protein.columns = ["UniProtAC", "UniProtID", "protein_name", "genename", "organism", "PRO_id", "SwissProt/TrEmbl"]
 protein.head()
@@ -683,34 +663,209 @@ for i, row in score.iterrows():
     else:
         print(">Can't find protein<")
 
-convertedScores = pd.DataFrame(np.column_stack([substrateGenes, \
-                                                ["NA"]*len(Scores), ["NA"]*len(Scores), ["NA"]*len(Scores), ["NA"]*len(Scores), \
-                                                enzymeGenes, \
-                                                ["NA"]*len(Scores), ["NA"]*len(Scores), KinaseGroup, KinaseFamily, \
-                                                Species, Scores, PMIDS]), \
-                               columns=["substrateGenes", "-", "-", "-", "-", "enzymeGenes",\
-                                        "-", "-", "KinaseGroup", "KinaseFamily","Species", "Scores", "PMIDS"])
-convertedScores.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt", sep="\t")
+# DataFrame
+import numpy as np
+convertedScores = pd.DataFrame(np.column_stack([substrateGenes, enzymeGenes, KinaseGroup, KinaseFamily, Species, Scores, PMIDS]), \
+                               columns=["substrateGenes", "enzymeGenes", "KinaseGroup", "KinaseFamily","Species", "Scores", "PMIDS"])
+convertedScores = convertedScores.apply(lambda x: x.astype('category'))
+convertedScores['Scores'] = pd.to_numeric(Scores, errors='ignore')*1.00
 
-convertedScores = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt")
 
-# Subset humans and mice
-mhScores = convertedScores[(convertedScores.Species == "Homo sapiens (Human)") | (convertedScores.Species == "Mus musculus (Mouse)")]
+# Get the mean for each enzyme
+keepCols = list(convertedScores.columns); keepCols.remove("Scores")
+groupedScores = convertedScores.groupby(keepCols)['Scores'].mean().reset_index()
+groupedScores.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt", sep="\t")
+
+groupedScores = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt")
+
+# Prepare PPI in SIG format
+## Subset humans and mice
+mhScores = groupedScores[(groupedScores.Species == "Homo sapiens (Human)") | (groupedScores.Species == "Mus musculus (Mouse)")]
+## Convert to simple Species names
 mhScores['Species'] = mhScores['Species'].map({"Homo sapiens (Human)":"Human","Mus musculus (Mouse)":"Mouse"})
 # Make genes all uppecase
 mhScores['substrateGenes'] = mhScores['substrateGenes'].str.upper()
 mhScores['enzymeGenes'] = mhScores['enzymeGenes'].str.upper()
 mhScores.shape
 # Remove entries without PubMedIDs
-mhScores_pmids = mhScores.dropna(subset=["PMIDS"])
-mhScores_pmids.shape
+mhScores = mhScores.dropna(subset=["PMIDS"])
+mhScores.shape
+# Remove any duplicates
+mhScores = mhScores.drop_duplicates()
+mhScores.shape
+
+
+# Write SIG for all genes in iPTMnet
+NAs = ["NA"]*len(mhScores.enzymeGenes)
+# NOTE: reordered columns so enzyme (e.g. kinase) is in the first col
+iPTMnet_SIG = pd.DataFrame(np.column_stack([mhScores.enzymeGenes,NAs, NAs, NAs, NAs,mhScores.substrateGenes, \
+                                            NAs, NAs, mhScores.KinaseGroup, mhScores.KinaseFamily, \
+                                            mhScores.Species, round(mhScores.Scores,3), mhScores.PMIDS]) )
+iPTMnet_SIG.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/iPTMnet-2018_Mouse-Human_AllGenes_PPI.sig", sep=" ", header=False, index=False)
+
+# Make GMT for KINASES in iPTMnet
+kinaseScores = iPTMnet_SIG[iPTMnet_SIG[0].isin(KINASES)]
+kinaseScores.columns = ['enzymeGenes','NA','NA','NA','NA','substrateGenes','NA','NA', 'KinaseGroup', 'KinaseFamily', 'Species', 'PMIDS', 'Scores']
+
+with open("X2K_Databases/KINASE/iPTMnet/iPTMnet-2018_Mouse-Human_KINASES.gmt","w") as GMT:
+    for ki in kinaseScores['enzymeGenes'].unique():
+        kiSub = kinaseScores[kinaseScores['enzymeGenes'] == ki]
+        for species in list(kiSub['Species'].unique()):
+            spSub = kiSub[kiSub['Species']==species]
+            interactors = spSub.sort_values(by=['substrateGenes'], ascending=False)['substrateGenes'].values
+            newName = "_".join([ki,"iPTMnet-"+"KinaseGroup:"+kiSub['KinaseGroup'].unique()[0]+"-KinaseFamily:"+kiSub['KinaseFamily'].unique()[0],species])+"_"
+            if len(interactors)>=1:
+                GMT.write(newName+"\t\t"+"\t".join(interactors)+"\n")
+
+
+# -----------PHOSPHOSITE-----------
+phos = pd.read_table("X2K_Databases/KINASE/Phosphosite/Processing/Phosphosite.Kinase_Substrate_Dataset.02-2018.txt", skiprows=[0,1,2])
+phos.head()
+noRXN = phos[(phos.IN_VIVO_RXN!="X") & (phos.IN_VITRO_RXN!="X")]
+noRXN.shape[0] # Just double checking that all kinase-substrate pairings have at least one kind of interaction
+
+## Convert to KINASE GMT
+### Add Group and Family info to name
+def getKinaseGroupAndFamily(kinaseList):
+    geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None, names=["Gene","GeneSyn"])
+    kinaseGroups = pd.read_csv("X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv")
+    kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
+    for k in kinaseList:
+        syns=[k]
+        if k in list(geneSyn.Gene):
+            newSyns = list( geneSyn[geneSyn.Gene == k].GeneSyn.unique() )
+            for s in newSyns:
+                syns.append(s)
+        overlap = list( set(syns).intersection(set(kgroupDict.keys())) )
+        if len(overlap) >0:
+            results = kgroupDict[overlap[0]]
+        else:
+            results = ["NA","NA"]
+    return results
+
+with open("X2K_Databases/KINASE/Phosphosite/Phosphosite-02-2018_Mouse-Human_KINASES.gmt","w") as PHOS:
+    phosHM = phos[phos.KIN_ORGANISM.isin(["human","mouse"]) & phos.SUB_ORGANISM.isin(["human","mouse"])]
+    for k in list(phosHM.GENE.unique()):
+        phosSub = phosHM[phosHM.GENE==k]
+        Group, Family = getKinaseGroupAndFamily([k])
+        for species in list(phosSub.KIN_ORGANISM.unique()):
+            Species = species[0].upper()+species[1:]
+            phosSpec = phosSub[(phosSub.KIN_ORGANISM == species) & (phosSub.KIN_ORGANISM == species)]
+            substrates = list(set(phosSub.SUB_GENE.values))
+            cleanSubstrates = [x for x in substrates if str(x) != 'nan']
+            cleanSubstrates = [x.upper() for x in cleanSubstrates]
+            newName = k.upper()+"_"+"-".join(["KinaseGroup:"+Group,"KinaseFamily:"+Family])+"-PHOSPHOSITE_"+Species+"_"
+            if len(substrates)>=1:
+                PHOS.write(newName+"\t\t"+"\t".join(cleanSubstrates)+"\n")
+
+
+# -----------NetworkIN-----------
+## Kinase-substrate predictions from neural networks
+## "id" is the kinase name
+net = pd.read_table("X2K_Databases/KINASE/NetworkIN/Processing/networkin-05-2017_human_predictions_3.1.tsv")
+net.head()
+
+## Make GMT
+### Need to apply a cutoff for 'networkin_score', otherwise it lists too many substrates
+with open("X2K_Databases/KINASE/NetworkIN/NetworkIN-05-2017_UnknownSpecies_KINASES.gmt","w") as newNet:
+    for k in list(net.id.unique()):
+        # Convert annoying greek alphabet to actual GeneSymbol
+        for substring in ['alpha','beta','gamma','delta','epsilon','iota','theta','zeta']:
+            if substring in k:
+                newK = k.replace(substring,substring[0]).upper()
+            else:
+                newK = k.upper()
+        netSub = net[net.id==k]
+        # Alternatively could use "netphorest_score"
+        netMean = netSub.groupby('substrate_name').mean().reset_index()
+        substrates = list( netMean.sort_values(by=['networkin_score'], ascending=False).substrate_name )
+        substrates = [x.upper() for x in substrates]
+        group,family = getKinaseGroupAndFamily([newK])
+        newName = newK+"_KinaseGroup:"+group+"-KinaseFamily:"+family+"-NetworkIN_UnknownSpecies_"
+        newNet.write(newName+"\t\t"+"\t".join(substrates)+"\n")
+
+# -----------HMS LINCS KINOMEscan-----------
+kscan = pd.read_excel("X2K_Databases/General_Resources/KINOMEscan/Processing/HMS-LINCS_KinomeScan_Datasets_2017-10-23.xlsx")
+kscanProts = pd.read_excel("X2K_Databases/General_Resources/KINOMEscan/Processing/proteins_20180116225538.xlsx")
+#kscanProts = kscanProts.dropna(subset=['Gene Symbol'])
+kscanProts.head()
+geneDict = dict(zip(kscanProts['Name'], kscanProts['Gene Symbol']))
+
+# [1] Collect all data first
+superData = pd.DataFrame(columns=['controlType', 'datapointName', 'datapointUnit', 'datapointValue',\
+   'datarecordID', 'hmsDatasetID', 'protein_ppCenterBatchID',\
+   'protein_ppCenterCanonicalID', 'protein_ppName', 'protein_pplincsid',\
+   'recordedPlate', 'recordedWell', 'smallmolecule_smCenterBatchID',\
+   'smallmolecule_smCenterCompoundID', 'smallmolecule_smLincsID',\
+   'smallmolecule_smName', 'smallmolecule_smSalt', 'GeneSymbol'] )
+for id in kscan.dataset_id:
+    print('Adding Data to SuperData: '+str(id))
+    # Download data from json
+    url = "http://lincs.hms.harvard.edu/db/api/v1/"+"datasetdata/"+str(id)
+    data = pd.read_json(url)
+    if len(data)>0:
+        superData = superData.append(data)
+    else:
+        print('Missing Data: ' + str(id))
+
+# [2] Convert superData into GMT (with each drug combined into one line)
+with open("X2K_Databases/General_Resources/KINOMEscan/KINOMEscan-01-2018_Small-Molecule-Kinase-Perturbations.gmt","w") as newFile:
+    for drug in list(superData.smallmolecule_smName.unique()):
+        data = superData[superData.smallmolecule_smName==drug]
+        data = data[data.datapointName.isin(["percentControl","dissociationConstant","percentInhibition"])]
+        # Convert genes to GeneSymbols
+        data['GeneSymbol'] = [geneDict[x] for x in data.protein_ppName]
+        # Get mean value of each gene
+        data['datapointValue'] = pd.to_numeric(data['datapointValue'], errors='ignore') * 1.00
+        dataGrouped = data.groupby('GeneSymbol').mean().reset_index()
+        dataGrouped = dataGrouped.dropna(subset=['GeneSymbol'])
+        dataGrouped['GeneSymbol'] = [x.upper() for x in dataGrouped['GeneSymbol']]
+        # Order genes by datapointValue (direction of order depends on metric?)
+        if str(dataGrouped.datapointValue[0])=="percentControl":
+            geneList = list( dataGrouped.sort_values(by=['datapointValue'], ascending=False).GeneSymbol )
+        elif str(dataGrouped.datapointValue[0])=="percentInhibition":
+            geneList = list( dataGrouped.sort_values(by=['datapointValue'], ascending=False).GeneSymbol)
+        else:
+            geneList = list(dataGrouped.sort_values(by=['datapointValue'], ascending=False).GeneSymbol)
+        # Write to file
+        drugInfo = "HMS-LINCS-KINOMEscan_smCenterCompoundID:"+str(data.smallmolecule_smCenterCompoundID.values[0])+"_smLincsID:"+str(data.smallmolecule_smLincsID.values[0])+"_smName:"+str(data.smallmolecule_smName.values[0])
+        newFile.write(drugInfo+"\t\t"+"\t".join(geneList)+"\n")
 
 
 
+# -----------Split KEA file-----------
 
-# Write iPTMnet PPI
-mhScores_final = mhScores_pmids.fillna("NA").iloc[:,2:]
-mhScores_final.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/iPTMnet-2018_Mouse-Human_PPI.txt", sep=" ", header=False, index=False)
-
-# Make GMT for KINASES
-kinaseScores = mhScores_pmids[mhScores_pmids.enzymeGenes.isin(KINASES)]
+KEA = pd.read_csv("X2K_Databases/KINASE/KEA_datasets/Processing/kinase-protein_interactions.csv", header=None, names=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
+KEA.head()
+# Get complete list of databases used in
+## 'SAVI' == 'SNAVI'?...
+allDbs=[]
+for dbs in KEA.Databases.unique():
+    dbsSp = dbs.split(";")
+    for db in dbsSp:
+        if db not in allDbs:
+            allDbs.append(db)
+## Split file into individual csv's
+for db in allDbs:
+    newDF=pd.DataFrame(columns=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
+    newPath = "X2K_Databases/KINASE/KEA_datasets/Processing/"+db+"_UnknownSpecies_KINASES.csv"
+    for i,row in KEA.iterrows():
+        if db in row.Databases.split(";"):
+            newRow = row
+            newRow['Databases'] = db
+            newDF = newDF.append(newRow)
+    newDF.to_csv(newPath, header=None, index=False)
+## Convert each csv to GMT
+for db in allDbs:
+    path = "X2K_Databases/KINASE/KEA_datasets/Processing/" + db + "_UnknownSpecies_KINASES.csv"
+    gmtPath = "X2K_Databases/KINASE/KEA_datasets/"+db+"_UnknownSpecies_KINASES.gmt"
+    df = pd.read_csv(path, header=None, names=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
+    with open(gmtPath,"w") as newGMT:
+        for k in list(df.Kinase.unique()):
+            dfSub = df[df.Kinase==k]
+            substrates = list(dfSub.Substrate.unique())
+            group = dfSub.KinaseGroup.values[0]
+            family = dfSub.KinaseFamily.values[0]
+            newName = k+"_"+"-".join(["KinaseGroup:"+group,"KinaseFamily:"+family,db])+"_UnknownSpecies_"
+            if len(substrates)>=1:
+                newGMT.write(newName+"\t\t"+"\t".join(substrates)+"\n")
