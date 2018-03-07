@@ -42,7 +42,7 @@ for tf in mTF.Symbol.unique():
         TFs.append(tf.upper())
 # Add synonyms
 TFs = addSynonyms(TFs)
-pd.Series(TFs).to_csv("X2K_Databases/General_Resources/compiled-TFs_Mouse-Human.csv")
+pd.Series(TFs[1]).to_csv("X2K_Databases/General_Resources/compiled-TFs_Mouse-Human.csv", index=False)
 
 # Get all Kinases
 ## KEA
@@ -57,7 +57,6 @@ kinaseCom_Mmus = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinom
 kinaseCom_Mmus = kinaseCom_Mmus.rename(index=str, columns={"Gene Name": "Name"})
 kinaseCom_Mmus.columns
 
-
 kinaseGroups = pd.concat([ kinaseCom_HsapUpdated[["Name","Group","Family"]],\
           kinaseCom_Hsap[["Name","Group","Family"]],\
           kinaseCom_Mmus[["Name","Group","Family"]] ])
@@ -70,11 +69,15 @@ for k in kinaseCom:
         KINASES.append(k)
 ## Add synonyms
 KINASES = addSynonyms(KINASES)
-pd.Series(KINASES).to_csv("X2K_Databases/General_Resources/compiled-Kinases_Mouse-Human.csv")
+pd.Series(KINASES).to_csv("X2K_Databases/General_Resources/compiled-Kinases_Mouse-Human.csv", index=False)
+
+
+
 
 
 # Summary table
 def getDatasetsSummary(writeExcel=False):
+
     def extract_TF_KINASE_stats(dataset_path):
         with open(dataset_path) as DATA:
             data = DATA.readlines()
@@ -96,34 +99,34 @@ def getDatasetsSummary(writeExcel=False):
             num_TF_Kinase_Sets = len(data)
             num_unique_TF_Ki = len(unique_TF_Ki)
             num_targets_substrates = len(targets_substrates)
-            avg_set_size = sum(targets_substrates_len) / len(targets_substrates_len)
+            avg_set_size = round( sum(targets_substrates_len) / len(targets_substrates_len), 2)
         return num_TF_Kinase_Sets, num_unique_TF_Ki, num_targets_substrates, avg_set_size
 
     def extract_PPI_stats(dataset_path):
-        data = pd.read_table(dataset_path, header=None, delim_whitespace=True)
-        totalInteractions = data.shape[0]
-        uniqueInteractions = [];
-        interactionsPerProtein = []
-        for i, row in data.iterrows():
-            gene = row.iloc[0]
-            interactor = row.iloc[5]
-            if gene + "@" + interactor not in uniqueInteractions and interactor + "@" + gene not in uniqueInteractions:
-                uniqueInteractions.append(gene + "@" + interactor)
-        uniqueProteins = list(data[0].unique())
-        for prot in uniqueProteins:
-            prot_sub = data[data[0] == prot]
-            interactionsPerProtein.append(prot_sub.__len__())
-        avgInteractionsPerProtein = sum(interactionsPerProtein) / len(interactionsPerProtein)
-        return totalInteractions, len(uniqueInteractions), len(uniqueProteins), avgInteractionsPerProtein
+        if dataset_path.endswith("sig"):
+            data = pd.read_table(dataset_path, header=None, delim_whitespace=True)
+            totalInteractions = data.shape[0]
+            uniqueInteractions = [];
+            interactionsPerProtein = []
+            for i, row in data.iterrows():
+                gene = row.iloc[0]
+                interactor = row.iloc[5]
+                if gene + "@" + interactor not in uniqueInteractions and interactor + "@" + gene not in uniqueInteractions:
+                    uniqueInteractions.append(gene + "@" + interactor)
+            uniqueProteins = list(data[0].unique())
+            for prot in uniqueProteins:
+                prot_sub = data[data[0] == prot]
+                interactionsPerProtein.append(prot_sub.__len__())
+            avgInteractionsPerProtein = round( sum(interactionsPerProtein) / len(interactionsPerProtein),2 )
+            return totalInteractions, len(uniqueInteractions), len(uniqueProteins), avgInteractionsPerProtein
 
     # Make summary table
     import os
     import pandas as pd
+    import numpy as np
     root = "/Users/schilder/Desktop/X2K_Databases"
     pathList = [root + "/TF", root + "/PPI", root + "/KINASE"]
-    TF_summaryTable = pd.DataFrame();
-    KINASE_summaryTable = pd.DataFrame();
-    PPI_summaryTable = pd.DataFrame()
+    TF_summaryTable = pd.DataFrame(); KINASE_summaryTable = pd.DataFrame(); PPI_summaryTable = pd.DataFrame()
     for path in pathList:
         dataType = path.split("/")[-1]
         # Get list of only folders
@@ -133,46 +136,42 @@ def getDatasetsSummary(writeExcel=False):
             for file in dir_contents:
                 if file.endswith(tuple([".gmt", ".sig", ".txt"])):
                     print(os.path.join(path, folder, file))
-                    # TF & KINASE table
-                    if dataType == "TF":
-                        num_TF_Kinase_Sets, num_unique_TF_Ki, num_targets_substrates, avg_set_size = extract_TF_KINASE_stats(
-                            os.path.join(path, folder, file))
-                        TF_summaryTable = TF_summaryTable.append(pd.DataFrame(
-                            data={'dataType': [dataType], 'databaseName': [folder], 'fileName': [file],
-                                  'TF Sets': [num_TF_Kinase_Sets], 'Unique Kinases': [num_unique_TF_Ki],
-                                  'Unique Targets': num_targets_substrates, 'Average Targets per TF': avg_set_size}),
-                                                                 ignore_index=True)
-                    elif dataType == "Kinase":
-                        num_TF_Kinase_Sets, num_unique_TF_Ki, num_targets_substrates, avg_set_size = extract_TF_KINASE_stats(
-                            os.path.join(path, folder, file))
-                        KINASE_summaryTable = KINASE_summaryTable.append(pd.DataFrame(
-                            data={'dataType': [dataType], 'databaseName': [folder], 'fileName': [file],
-                                  'KINASE Sets': [num_TF_Kinase_Sets], 'Unique KINASES': [num_unique_TF_Ki],
-                                  'Unique Substrates': num_targets_substrates,
-                                  'Average Substrates per KINASE': avg_set_size}), ignore_index=True)
-                    # PPI table
-                    elif dataType == "PPI":
-                        totalInteractions, uniqueInteractions, uniqueProteins, avgInteractionsPerProtein = extract_PPI_stats(
-                            os.path.join(path, folder, file))
-                        PPI_summaryTable = PPI_summaryTable.append(pd.DataFrame(
-                            data={'dataType': [dataType], 'databaseName': [folder], 'fileName': [file],
-                                  'Total Interactions': [totalInteractions],
-                                  'Unique Interactions': [uniqueInteractions], 'Unique Proteins': uniqueProteins,
-                                  'Average Interactions Per Protein': avgInteractionsPerProtein}), ignore_index=True)
+                    try:
+                        # TF table
+                        if dataType == "TF":
+                            num_TF_Kinase_Sets, num_unique_TF_Ki, num_targets_substrates, avg_set_size = extract_TF_KINASE_stats(os.path.join(path, folder, file))
+                            cols = ['Data Type', 'Database Name', 'File Name', 'TF Sets', 'Unique TFs','Unique Targets', 'Average Targets per TF']
+                            TF_summaryTable = TF_summaryTable.append( \
+                                pd.DataFrame( np.column_stack([dataType,folder,file,num_TF_Kinase_Sets,num_unique_TF_Ki, num_targets_substrates, avg_set_size]),columns=cols ) )
+                        # KINASE table
+                        elif dataType == "KINASE":
+                            num_TF_Kinase_Sets, num_unique_TF_Ki, num_targets_substrates, avg_set_size = extract_TF_KINASE_stats(os.path.join(path, folder, file))
+                            cols=['Data Type','Database Name','File Name','Kinase Sets', 'Unique Kinases','Unique Substrates', 'Average Substrates per Kinase']
+                            KINASE_summaryTable = KINASE_summaryTable.append( \
+                                pd.DataFrame(np.column_stack([dataType,folder,file,num_TF_Kinase_Sets,num_unique_TF_Ki,num_targets_substrates,avg_set_size]),columns=cols))
+                        # PPI table
+                        elif dataType == "PPI":
+                            totalInteractions, uniqueInteractions, uniqueProteins, avgInteractionsPerProtein = extract_PPI_stats(os.path.join(path, folder, file))
+                            cols=['Data Type','Database Name','File Name','Total Interactions','Unique Interactions','Unique Proteins', 'Average Interactions Per Protein']
+                            PPI_summaryTable = PPI_summaryTable.append( \
+                                pd.DataFrame(np.column_stack([dataType,folder,file,totalInteractions,uniqueInteractions,uniqueProteins,avgInteractionsPerProtein]),columns=cols))
+                    except:
+                        print("Could not summarize:"+ os.path.join(path, folder, file))
 
     if writeExcel != False:
         print("Writing table to excel file...")
-        writer = pd.ExcelWriter(writeExcel)
-        TF_summaryTable.to_excel(writeExcel, 'Sheet1', startrow=0)
-        KINASE_summaryTable.to_excel(writeExcel, 'Sheet1', startrow=TF_summaryTable.shape[0] + 2)
-        PPI_summaryTable.to_excel(writeExcel, 'Sheet1',
-                                  startrow=TF_summaryTable.shape[0] + KINASE_summaryTable.shape[0] + 2)
+        frames = [TF_summaryTable, PPI_summaryTable, KINASE_summaryTable]
+        start_row = 1
+        writer=  pd.ExcelWriter(writeExcel)
+        for df in frames:  # assuming they're already DataFrames
+            df.to_excel(writer, 'Sheet1', startrow=start_row, index=False)
+            start_row += len(df) + 1  # add a row for the column header?
         writer.save()
+
     return TF_summaryTable, KINASE_summaryTable, PPI_summaryTable
 
 
-TF_summaryTable, KINASE_summaryTable, PPI_summaryTable = getDatasetsSummary(
-    writeExcel="X2K_Databases/X2K_Database_Summary.xlsx")
+TF_summaryTable, PPI_summaryTable, KINASE_summaryTable= getDatasetsSummary(writeExcel="X2K_Databases/X2K_Database_Summary.xlsx")
 
 # HomoloGene
 # XXXXX DOES NOT HAVE WITHIN-SPECIES GENE SYNONYMS. USE MOSHE'S MOUSE-HUMAN HOMLOG MAPPING INSTEAD XXXXX
@@ -218,22 +217,25 @@ def geneConverter(gene, species='?'):
 minNumberInteractors = 5
 
 # ----------- ARCHS4 -----------
-with open("X2K_Databases/TF/ARCHS4/Processing/archs4_HUMAN_transcription_factor_gene_set_2017_08.gmt") as human, \
-        open("X2K_Databases/TF/ARCHS4/Processing/archs4_MOUSE_transcription_factor_gene_set_2018_02.gmt") as mouse, \
+with open("X2K_Databases/TF/ARCHS4/Processing/ARCHS4-08-2017_Human_transcription-factor-gene-set.gmt") as human, \
+        open("X2K_Databases/TF/ARCHS4/Processing/ARCHS4-02-2018_Mouse_transcription-factor-gene-set.gmt") as mouse, \
         open("X2K_Databases/TF/ARCHS4/ARCHS4-02-2018_Mouse-Human_TF.gmt", "w") as combined:
     for line in human:
         lineSp = line.split("\t")
-        newName = lineSp[0] + "_" + "ARCHS4" + "_" + "Human" + "_"
-        combined.write(newName + "\t\t" + "\t".join(lineSp[2:]))
+        geneName = lineSp[0]
+        newName =  "ARCHS4" + "_" + "Human"
+        combined.write(geneName + "\t"+newName+"\t" + "\t".join(lineSp[2:]))
     for line in mouse:
         lineSp = line.split("\t")
-        newName = lineSp[0] + "_" + "ARCHS4" + "_" + "Mouse" + "_"
+        geneName = lineSp[0]
+        newName =  "ARCHS4" + "_" + "Mouse"
         if len(lineSp[2:]) >= minNumberInteractors:
-            combined.write(newName + "\t\t" + "\t".join(lineSp[2:]))
+            combined.write(geneName + "\t"+newName+"\t" + "\t".join(lineSp[2:]))
 
 # ----------- ChEA 2016 -----------
 with open("X2K_Databases/TF/ChEA_2016/Processing/ChEA_2016.txt") as CHEA, \
-        open("X2K_Databases/TF/ChEA_2016/CHEA-2016_Mouse-Human_TF.gmt", "w") as newFile:
+        open("X2K_Databases/TF/ChEA_2016/CHEA-2016_Human_TF.gmt", "w") as humanFile,\
+        open("X2K_Databases/TF/ChEA_2016/CHEA-2016_Mouse_TF.gmt", "w") as mouseFile:
     for line in CHEA:
         lineSp = line.split("\t")
         gene = lineSp[0].split("_")[0]
@@ -242,27 +244,37 @@ with open("X2K_Databases/TF/ChEA_2016/Processing/ChEA_2016.txt") as CHEA, \
             species = 'Human'
         if species != "Rat":
             info = "-".join(lineSp[0].split("_")[1:-1])
-            newName = '_'.join([gene, info, species]) + "_"
+            newName = '_'.join([info, species])
             cleanGenes = [gene.replace(',1.0', '') for gene in lineSp[2:]]
             if len(cleanGenes) >= minNumberInteractors:
-                newFile.write(newName + "\t\t" + "\t".join(cleanGenes))
+                if species == "Human":
+                    humanFile.write(gene + "\t" + newName + "\t" + "\t".join(cleanGenes))
+                if species == "Mouse":
+                    mouseFile.write(gene + "\t" + newName + "\t" + "\t".join(cleanGenes))
 
 # ----------- ENCODE 2015 -----------
 with open("X2K_Databases/TF/ENCODE_2015/Processing/ENCODE_TF_ChIP-seq_2015.txt") as ENCODE_2015, \
-        open("X2K_Databases/TF/ENCODE_2015/ENCODE-2015_Mouse-Human_TF.gmt", "w") as newFile:
+        open("X2K_Databases/TF/ENCODE_2015/ENCODE-2015_Human_TF.gmt", "w") as humanFile,\
+        open("X2K_Databases/TF/ENCODE_2015/ENCODE-2015_Mouse_TF.gmt", "w") as mouseFile:
     for line in ENCODE_2015:
         lineSp = line.split("\t")
         gene = lineSp[0].split("_")[0]
+        gene = gene.replace("phosphoS5","")
+        gene = gene.replace("phosphoS2", "")
         info = "-".join(lineSp[0].split("_")[1:-1])
         genome = lineSp[0].split("_")[-1]
         speciesDict = {"hg19": "Human", "mm9": "Mouse"}
-        newName = "_".join([gene, info, speciesDict[genome]]) + "_"
+        species = speciesDict[genome]
+        newName = "_".join([info, species])
         if len(lineSp[2:]) >= minNumberInteractors:
-            newFile.write(newName + "\t\t" + "\t".join(lineSp[2:]))
+            if species=="Human":
+                humanFile.write(gene + "\t" + newName + "\t" + "\t".join(lineSp[2:]))
+            if species=="Mouse":
+                mouseFile.write(gene + "\t" + newName + "\t" + "\t".join(lineSp[2:]))
 
-# ----------- ENCODE 2017 -----------
+# ----------- ENCODE 2017 ----------- # DO NOT USE!!!! Moshe made this version, but there may be problems with it. Ali is currently working on an improved version.
 with open("X2K_Databases/TF/ENCODE_2017/Processing/encode_transcription_factors_gene_set_2017_08.gmt") as ENCODE_2017, \
-        open("X2K_Databases/TF/ENCODE_2017/ENCODE-2017_Human?_TF.gmt", "w") as newFile:
+        open("X2K_Databases/TF/ENCODE_2017/ENCODE-08-2017_Human?_TF.gmt", "w") as newFile:
     for line in ENCODE_2017:
         lineSp = line.split("\t")
         gene = lineSp[0].split("_")[0]
@@ -274,16 +286,15 @@ with open("X2K_Databases/TF/ENCODE_2017/Processing/encode_transcription_factors_
 
 # ----------- Enrichr -----------
 with open("X2K_Databases/TF/Enrichr/Processing/Enrichr_Submissions_TF-Gene_Coocurrence.txt") as Enrichr, \
-        open("X2K_Databases/TF/Enrichr/Enrichr-Submissions-TF-Gene-Cooccurence-2018_Human?_TF.gmt", "w") as newFile:
+        open("X2K_Databases/TF/Enrichr/Enrichr-Submissions-TF-Gene-Cooccurence-2018_UnknownSpecies_TF.gmt", "w") as newFile:
     for line in Enrichr:
         lineSp = line.split("\t")
         gene = lineSp[0].split("_")[0]
-        info = "-".join(lineSp[0].split("_")[1:-1])
         species = "UnknownSpecies"
-        newName = "_".join([gene, info, species]) + "_"
+        newName = "_".join(["Enrichr-Submissions", species])
         cleanGenes = [gene.replace(',1.0', '') for gene in lineSp[2:]]
         if len(cleanGenes) >= minNumberInteractors:
-            newFile.write(newName + "\t\t" + "\t".join(cleanGenes))
+            newFile.write(gene + "\t"+ newName +"\t" + "\t".join(cleanGenes))
 
 # ----------- huMAP -----------
 with open("X2K_Databases/TF/huMAP/Processing/huMAP_gene_set_2017_07.gmt") as huMAP, \
@@ -292,9 +303,9 @@ with open("X2K_Databases/TF/huMAP/Processing/huMAP_gene_set_2017_07.gmt") as huM
         lineSp = line.split("\t")
         gene = lineSp[0]
         species = "Human"
-        newName = gene + "_huMAP_" + species + "_"
-        if len(lineSp[2:]) >= minNumberInteractors:
-            newFile.write(newName + "\t\t" + "\t".join(lineSp[2:]))
+        newName = "huMAP-TF_" + species
+        if len(lineSp[2:]) >= minNumberInteractors and gene in TFs:
+            newFile.write(gene + "\t" + newName + "\t" + "\t".join(lineSp[2:]))
 
 # ----------- TF PPIs -----------
 with open("X2K_Databases/TF/TF_PPIs/Processing/Transcription_Factor_PPIs.txt") as TF_PPIs, \
@@ -303,13 +314,14 @@ with open("X2K_Databases/TF/TF_PPIs/Processing/Transcription_Factor_PPIs.txt") a
         lineSp = line.split("\t")
         gene = lineSp[0]
         species = "UnknownSpecies"
-        newName = gene + "_TF-PPIs-GENES2FANS_" + species + "_"
+        newName = "TF-PPIs-GENES2FANS_" + species
         if len(lineSp[2:]) >= minNumberInteractors:
-            newFile.write(newName + "\t\t" + "\t".join(lineSp[2:]))
+            newFile.write(gene + "\t" + newName + "\t" + "\t".join(lineSp[2:]))
 
 # ----------- TF-LOF-Expression-from-GEO -----------
 with open("X2K_Databases/TF/TF-LOF_Expression_GEO/Processing/TF-LOF_Expression_from_GEO.txt") as TF_PPIs, \
-        open("X2K_Databases/TF/TF-LOF_Expression_GEO/TF-LOF-Expression-GEO_07-2017_Mouse-Human_TF.gmt", "w") as newFile:
+        open("X2K_Databases/TF/TF-LOF_Expression_GEO/TF-LOF-Expression-GEO_07-2017_Human_TF.gmt", "w") as humanFile,\
+        open("X2K_Databases/TF/TF-LOF_Expression_GEO/TF-LOF-Expression-GEO_07-2017_Mouse_TF.gmt", "w") as mouseFile:
     for line in TF_PPIs:
         lineSp = line.split("\t")
         nameSp = lineSp[0].split("_")
@@ -323,64 +335,92 @@ with open("X2K_Databases/TF/TF-LOF_Expression_GEO/Processing/TF-LOF_Expression_f
             nameSp.remove("mouse")
         info = "-".join(nameSp[:-1])
         cleanGenes = [gene.split(",")[0].upper() for gene in lineSp[2:]]
-        newName = "_".join([gene, info, species]) + "_"
+        newName = "_".join([info, species])
         if len(cleanGenes) >= minNumberInteractors:
-            newFile.write(newName + "\t\t" + "\t".join(cleanGenes))
+            if species=="Human":
+                humanFile.write(gene + "\t" + newName + "\t" + "\t".join(cleanGenes))
+            if species=="Mouse":
+                mouseFile.write(gene + "\t" + newName + "\t" + "\t".join(cleanGenes))
 
 
 # -----------CREEDS Manual TF Perturbations-----------
 # Get just the TF experiments
+TFs = pd.read_csv("X2K_Databases/General_Resources/compiled-TFs_Mouse-Human.csv", header=None, index_col=False)
+TFs = list(TFs[0])
+
+def reformatAndConvert(line, up_dn):
+    lineSp = line.split("\t")
+    name = lineSp[0].split(" ")
+    gene = name[0]
+    if "human" in name:
+        species = "Human"
+    elif "mouse" in name:
+        species = 'Mouse'
+    else:
+        species = "UnknownSpecies"
+    newName = "-".join(name[1:] + ["CREEDS-ManualSingleGenePerturbations"]) + "_" + species + "_" + up_dn
+    ## Get rid of '1.0' ib DEGs
+    DEGs = lineSp[2:][:-1]
+    for g in DEGs:
+        DEGs[DEGs.index(g)] = g.strip(",1.0").upper()
+    newLine = gene.upper() + "\t" + newName + "\t" + "\t".join(DEGs) + '\n'
+    return newLine, species
+
+
 with open("X2K_Databases/General_Resources/CREEDS/Single_Gene_Perturbations_from_GEO_up.txt") as up, \
         open("X2K_Databases/General_Resources/CREEDS/Single_Gene_Perturbations_from_GEO_down.txt") as dn, \
-        open("X2K_Databases/manual_single_gene_perturbations_TF.txt", "w") as newGMT_TF:
-    def reformatAndConvert(line, up_dn):
-        lineSp = line.split("\t")
-        name = lineSp[0].split(" ")
-        gene = name[0]
-        if "human" in name:
-            Species = "Human"
-        elif "mouse" in name:
-            Species = 'Mouse'
-        else:
-            Species = "UnknownSpecies"
-        newName = gene.upper() + '_' + "-".join(name[1:] + ["CREEDS-ManualSingleGenePerturbations"])+"_"+Species+"_" +up_dn
-        ## Get rid of '1.0' ib DEGs
-        DEGs = lineSp[2:][:-1]
-        for g in DEGs:
-            DEGs[DEGs.index(g)] = g.strip(",1.0").upper()
-        newLine = newName + "\t\t" + "\t".join(DEGs) + '\n'
-        return newLine
+        open("X2K_Databases/TF/CREEDS/CREEDS-manual-single-gene-perturbations-from-GEO_Human_TF.txt", "w") as humanGMT_TF,\
+        open("X2K_Databases/TF/CREEDS/CREEDS-manual-single-gene-perturbations-from-GEO_Mouse_TF.txt", "w") as mouseGMT_TF:
     # Run through each line of both up and dn files
     dnLines = dn.readlines()
     for i, line in enumerate(up):
         gene = line.split(" ")[0]
         # Include only the TF experiments
-        if gene in TFs:
-            # Write Up line
-            newLineUp = reformatAndConvert(line, 'up')
-            newGMT_TF.write(newLineUp)
-            # Write Dn line
-            newLineDn = reformatAndConvert(dnLines[i], 'dn')
-            newGMT_TF.write(newLineDn)
+        if gene in TFs or gene.upper() in TFs:
+            # Format Up line
+            newLineUp, species = reformatAndConvert(line, 'up')
+            # Format Dn line
+            newLineDn, species = reformatAndConvert(dnLines[i], 'dn')
+            if species=="Human":
+                humanGMT_TF.write(newLineUp)
+                humanGMT_TF.write(newLineDn)
+            if species=="Mouse":
+                mouseGMT_TF.write(newLineUp)
+                mouseGMT_TF.write(newLineDn)
+
 # -----------CREEDS Manual Kinase Perturbations -----------
-# Combine up and down kinases
-with open("X2K_Databases/KINASE/CREEDS/Processing/manual_Kinase_Perturbations_from_GEO_up.txt") as K_up, \
-        open("X2K_Databases/KINASE/CREEDS/Processing/manual_Kinase_Perturbations_from_GEO_down.txt") as K_dn, \
-        open("X2K_Databases/KINASE/CREEDS/manual_Kinase_Perturbations_from_GEO.gmt", "w") as newFile:
-    K_dn_lines = K_dn.readlines()
-    for i, line in enumerate(K_up):
-        # Add Up
-        def modifyLine(line, direction):
-            lineSp = line.split("\t")
-            name = lineSp[0].split("_")
-            newName = name[0] +"_"+ "-".join(name[1:]+["CREEDS-ManualKinasePerturbations"])+"_UnknownSpecies"
-            DEGs = lineSp[2:]
-            newDEGS = []
-            for d in DEGs:
-                newDEGS.append(d.strip(",1.0"))
-            newFile.write(newName + "_"+ direction + "\t\t" + "\t".join(newDEGS))
-        modifyLine(line,"up")
-        modifyLine(K_dn_lines[i],"dn")
+KINASES = pd.read_csv("X2K_Databases/General_Resources/compiled-Kinases_Mouse-Human.csv", header=None, index_col=False)
+KINASES = list(KINASES[0])
+
+with open("X2K_Databases/General_Resources/CREEDS/Single_Gene_Perturbations_from_GEO_up.txt") as up, \
+        open("X2K_Databases/General_Resources/CREEDS/Single_Gene_Perturbations_from_GEO_down.txt") as dn, \
+        open("X2K_Databases/KINASE/CREEDS/Processing/CREEDS-manual-single-gene-perturbations-from-GEO_Human_KINASE.txt", "w") as humanGMT_KIN,\
+        open("X2K_Databases/KINASE/CREEDS/Processing/CREEDS-manual-single-gene-perturbations-from-GEO_Mouse_KINASE.txt", "w") as mouseGMT_KIN,\
+        open("X2K_Databases/KINASE/CREEDS/CREEDS-manual-single-gene-perturbations-from-GEO_Mouse-Human_KINASE.txt", "w") as GMT_KIN:
+    # Run through each line of both up and dn files
+    dnLines = dn.readlines()
+    for i, line in enumerate(up):
+        gene = line.split(" ")[0]
+        # Include only the TF experiments
+        if gene in KINASES or gene.upper() in KINASES:
+            # Format Up line
+            newLineUp, species = reformatAndConvert(line, 'up')
+            # Format Dn line
+            newLineDn, species = reformatAndConvert(dnLines[i], 'dn')
+            if species == "Human":
+                humanGMT_KIN.write(newLineUp)
+                humanGMT_KIN.write(newLineDn)
+                # Combined file
+                GMT_KIN.write(newLineUp)
+                GMT_KIN.write(newLineDn)
+            if species == "Mouse":
+                mouseGMT_KIN.write(newLineUp)
+                mouseGMT_KIN.write(newLineDn)
+                # Combined file
+                GMT_KIN.write(newLineUp)
+                GMT_KIN.write(newLineDn)
+
+
 
 
 # -----------[2] BIOGRID -----------
@@ -447,43 +487,45 @@ with open("X2K_Databases/General_Resources/BioGRID/BIOGRID_HighThroughput.txt") 
 
 # -----------Split JASPAR-TRANSFAC TF -----------
 # Create separate background files
-JASP_TRANS = pd.read_csv("X2K_Databases/TF/JASPAR-TRANSFAC/jaspar-transfac_background.csv",
-                         header=None)  # "transfac_background" actually has both transfac AND Jaspar
+JASP_TRANS = pd.read_csv("X2K_Databases/TF/JASPAR-TRANSFAC/JASPAR-TRANSFAC_background.csv", header=None)  # "transfac_background" actually has both transfac AND Jaspar
 JASP = JASP_TRANS[JASP_TRANS[5] == "jaspar"]
 TRANS = JASP_TRANS[JASP_TRANS[5].isin(["transfac", "transfacs"])]
 
-JASP.to_csv("X2K_Databases/TF/JASPAR-TRANSFAC/JASPAR_background.csv")
-TRANS.to_csv("X2K_Databases/TF/JASPAR-TRANSFAC/TRANSFAC_background.csv")
+
+def makeJaspTransBackground(df, species, databaseName):
+    if databaseName=="JASPAR-TRANSFAC":
+        subset = df[df[7] == species.lower()]
+        subset.to_csv("X2K_Databases/TF/JASPAR-TRANSFAC/" + databaseName + "_" + species + "_background.csv",\
+                      header=["", "", "GeneA", "GeneB", "", "Database", "Filler", "Species", "DateTime"], index=False, index_label=False)
+    else:
+        sub = df[df[5].isin(databaseName)]
+        subset = sub[sub[7]==species.lower()]
+        subset.to_csv("X2K_Databases/TF/JASPAR-TRANSFAC/"+databaseName[0].upper()+"_"+species+"_background.csv",\
+                      header=["","","GeneA","GeneB","","Database", "Filler", "Species", "DateTime"], index=False, index_label=False)
+for s in ["Human", "Mouse"]:
+    #makeJaspTransBackground(JASP_TRANS, s, databaseName=["jaspar"])
+    #makeJaspTransBackground(JASP_TRANS, s, databaseName=["transfac","transfacs"])
+    makeJaspTransBackground(JASP_TRANS, s, databaseName="JASPAR-TRANSFAC")
+
 
 
 # Create separate GMTs
-def backgroundToGMT(backgroundFile):
-    data_name = backgroundFile.split("_")[0]
-    background = pd.read_csv("X2K_Databases/TF/" + data_name + "/" + backgroundFile, header=None)
-
-    def makeGMT(background, species):
-        subset = background[background[8].isin(species)]
-        TFs = subset[3].unique()
-        Species = []
-        for s in species:
-            Species.append(s[0].upper() + s[1:])
-
-        with open("X2K_Databases/TF/" + data_name + "/" + data_name + "_" + "-".join(Species) + ".gmt", "w") as newFile:
-            for tf in TFs:
-                # Separate species in different lines
-                for spec in species:
-                    specUpper = spec.upper()[0] + spec[1:]
-                    tf_targets = list(subset[(subset[3] == tf) & (subset[8] == spec)][4])
-                    if len(tf_targets) > 0:
-                        newFile.write(tf + "_" + specUpper + "_" + "\t\t" + "\t".join(tf_targets) + "\n")
-
-    makeGMT(background, species=["mouse"])
-    makeGMT(background, species=["human"])
-    makeGMT(background, species=["mouse", "human"])
-
-
-backgroundToGMT("JASPAR_background.csv")
-backgroundToGMT("TRANSFAC_background.csv")
+def backgroundToGMT(database, speciesList=["Mouse","Human"]):
+    for species in speciesList:
+        background = pd.read_csv("X2K_Databases/TF/JASPAR-TRANSFAC" + "/" + database.upper()+"_"+species+"_background.csv", names=["","","GeneA","GeneB","","Database", "Filler", "Species", "DateTime"]) # names=["","","","GeneA","GeneB","GeneC","", "Filler", "Species", "Date", "Time"]
+        if species == "mouse":
+            background  =  background.iloc[1:]
+        subset = background[background.Species==species.lower()]
+        tfList = subset["GeneA"].unique()
+        with open("X2K_Databases/TF/" + database + "/"+ database.upper()+"_"+species+".gmt","w") as newFile:
+            for tf in tfList:
+                tf_targets = list(subset[subset["GeneA"] == tf]["GeneB"])
+                newName = database + "_" + species
+                if len(tf_targets) > 0:
+                    newFile.write(tf + "\t" + newName + "\t" + "\t".join(tf_targets) + "\n")
+#backgroundToGMT(database="JASPAR", speciesList=["Mouse","Human"])
+#backgroundToGMT(database="TRANSFAC", speciesList=["Mouse","Human"])
+backgroundToGMT(database="jaspar-transfac", speciesList=["Mouse","Human"])
 
 
 # -----------iREF-----------
@@ -512,48 +554,65 @@ def mitabGeneNames(mitab_path, output_path=False):
         iref_filt.to_csv(output_path, sep="\t")
     return iref_filt
 
+def mitabGeneNames(mitab_path, output_path=False):
+    import pandas as pd
+    iref = pd.read_table(mitab_path)
+    iref = iref[(iref.aliasA.str.contains("hgnc:"))&(iref.aliasB.str.contains("hgnc:"))]
+    # Strip down to get geneSymbols
+    iref["hgnc_A"] = iref.aliasA.str.split("|").apply(lambda parts: [x for x in parts if x.startswith("hgnc:") ][0]).str.replace("hgnc:","").str.upper()
+    iref["hgnc_B"] = iref.aliasB.str.split("|").apply(lambda parts: [x for x in parts if x.startswith("hgnc:") ][0]).str.replace("hgnc:","").str.upper()
+    # Filter NAs and blanks
+    iref = iref.dropna(subset=['hgnc_A','hgnc_B'])
+    iref_filt = iref[(iref["hgnc_A"] != '') & (iref["hgnc_B"] != '')]
+    # Write file
+    if output_path != False:
+        iref_filt.to_csv(output_path, sep="\t")
+    return iref_filt
 
-mouse_df = mitabGeneNames("X2K_Databases/PPI/iREF/Processing/10090.mitab.01-22-2018.txt",
-                          "X2K_Databases/PPI/iREF/Processing/mouse_mittab.txt")
-human_df = mitabGeneNames("X2K_Databases/PPI/iREF/Processing/9606.mitab.01-22-2018.txt",
-                          "X2K_Databases/PPI/iREF/Processing/human_mittab.txt")
+mouse_df = mitabGeneNames("X2K_Databases/PPI/iREF/Processing/10090.mitab.01-22-2018.txt","X2K_Databases/PPI/iREF/Processing/mouse_mittab.txt")
+human_df = mitabGeneNames("X2K_Databases/PPI/iREF/Processing/9606.mitab.01-22-2018.txt","X2K_Databases/PPI/iREF/Processing/human_mittab.txt")
 
-mouse_human_df = pd.concat([mouse_df, human_df])
+# mouse_df = pd.read_table("X2K_Databases/PPI/iREF/Processing/mouse_mittab.txt")
+# human_df = pd.read_table("X2K_Databases/PPI/iREF/Processing/human_mittab.txt")
+iREF_df = pd.concat([mouse_df, human_df])
 
 
 def mitabToSig(iREF_df, output_path):
-    interactions = []
+    # Remove any interactions without PMIDS
+    iREF_df = iREF_df[iREF_df.pmids!="-"]
+    iREF_df['Interaction'] = iREF_df.hgnc_A + "@" + iREF_df.hgnc_B
+    allInteractions = list( iREF_df['Interaction'].unique())
+    for i,inter in enumerate(allInteractions):
+        # Progress bar
+        print(str(i) + " : " + str(round((i + 1) / iREF_df.shape[0] * 100, 2)) + "% complete")
+        geneA=[]; geneB=[]; PMIDS=[]
+        inter = str(inter)
+        reverseInter = inter.split("@")[1]+"@"+inter.split("@")[0]
+        subset = iREF_df[(iREF_df.Interaction==inter)|(iREF_df.Interaction==reverseInter)]
+        pmidList = subset.pmids.str.replace("pubmed:","").unique().tolist()
+        if len(pmidList)<=15:
+            geneA.append( inter.split("@")[0] )
+            geneB.append( inter.split("@")[1] )
+            PMIDS.append(",".join(pmidList))
+    # Make dataframe
+    NAs = ["NA"]*len(g)
+    pd.DataFrame(np.column_stack([geneA, geneB, ]))
     with open(output_path, "w") as sig:
-        for i, row in iREF_df.iterrows():
-            # Progress bar
-            if (i + 1) % 100 == 0:
-                print(str(round((i + 1) / iREF_df.shape[0] * 100, 2)) + "% complete")
-            # Must have at least one PubmedID
-            if row.pmids != "-":
-                pubmedIDs = []
-                pubmedStr = row.pmids.split("|")
-                for pm in pubmedStr:
-                    pubmedIDs.append(pm.split(":")[1])
-                # Exclude duplicate interactions
-                if row.hgnc_A + "@" + row.hgnc_B not in interactions and row.hgnc_B + "@" + row.hgnc_A not in interactions:
-                    interactions.append(row.hgnc_A + "@" + row.hgnc_B)
-                    # Only include interactions with no more than 5 PubMedIDs (to exclude any MassSpec experiments)
-                    if len(pubmedIDs) <= 15:
-                        newLine = row.hgnc_A + "\tNA\tNA\tNA\tNA\t" + row.hgnc_B + "\tNA\tNA\tNA\tNA\tNA\t" + str(
-                            ",".join(pubmedIDs)) + '\n'
-                        sig.write(newLine)
+        # Only include interactions with no more than 5 PubMedIDs (to exclude any MassSpec experiments)
+            newLine = geneA + " NA NA NA NA " + geneB + " NA NA NA NA NA " + PMIDS + '\n'
+            sig.write(newLine)
 
 
-mitabToSig(mouse_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_mouse_PPI.sig")
-mitabToSig(human_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_human_PPI.sig")
-mitabToSig(mouse_human_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_PPI.sig")
+#mitabToSig(mouse_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_mouse_PPI.sig")
+#mitabToSig(human_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_human_PPI.sig")
+mitabToSig(iREF_df, output_path="X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_PPI.sig")
 
 
 # iREF GMT
 def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse"], mergeSpecies=False):
     def percentComplete(loopLength, iteration):
         percent = round((iteration + 1) / loopLength * 100, 2)
-        if percent % 5 == 0:
+        if percent % 10 == 0:
             print(str(percent) + "% complete")
 
     with open(output_path, "w") as gmt:
@@ -569,7 +628,7 @@ def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse
                 sub = df[(df.hgnc_A == gene) & (df.taxa == speciesDict[species])]
                 Bgenes = list(sub.hgnc_B.unique())
                 if len(Bgenes) >= 5:  # Ony include genes with at least 5 interactors
-                    newLine = gene + "_iREF_" + species + "_" + "\t\t" + "\t".join(Bgenes) + "\n"
+                    newLine = gene + "\t" + "iREF_" + species + "\t" + "\t".join(Bgenes) + "\n"
                     gmt.write(newLine)
                     percentComplete(loopLength=len(df.hgnc_A.unique()), iteration=i)
 
@@ -582,32 +641,30 @@ def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse
                 Bgenes = list(sub.hgnc_B.unique())
                 species = "Mouse-Human"
                 if len(Bgenes) >= 5:  # Ony include genes with at least 5 interactors
-                    newLine = gene + "_iREF_" + species + "_" + "\t\t" + "\t".join(Bgenes) + "\n"
+                    newLine = gene + "\t" + "iREF_" + species + "\t" + "\t".join(Bgenes) + "\n"
                     gmt.write(newLine)
                     percentComplete(loopLength=len(df.hgnc_A.unique()), iteration=i)
 
 
 # iREF GMT: Species as separate lines
 ## TFs
-mitabToGMT(mouse_human_df, "X2K_Databases/TF/iREF/iREF_02-2018_Mouse-Human_TF.gmt", subsetList=TFs,
-           speciesList=["Human", "Mouse"])
+mitabToGMT(iREF_df, "X2K_Databases/TF/iREF/iREF_02-2018_Mouse-Human_TF.gmt", subsetList=TFs, speciesList=["Human", "Mouse"])
 ## KINASES
-mitabToGMT(mouse_human_df, "X2K_Databases/KINASE/iREF/iREF_02-2018_Mouse-Human_KINASE.gmt", subsetList=KINASES,
-           speciesList=["Human", "Mouse"])
+mitabToGMT(iREF_df, "X2K_Databases/KINASE/iREF/iREF_02-2018_Mouse-Human_KINASE.gmt", subsetList=KINASES, speciesList=["Human", "Mouse"])
 ## All Genes  (takes a long time)
-mitabToGMT(mouse_human_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes.gmt", subsetList="",
-           speciesList=["Human", "Mouse"])
+mitabToGMT(iREF_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes.gmt", subsetList="", speciesList=["Human", "Mouse"])
 
 # iREF GMT: Species merged into same line
 ## TFs
-mitabToGMT(mouse_human_df, "X2K_Databases/TF/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt",
-           subsetList=TFs, mergeSpecies=True)
+mitabToGMT(iREF_df, "X2K_Databases/TF/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt", subsetList=TFs, mergeSpecies=True)
 ## KINASES
-mitabToGMT(mouse_human_df, "X2K_Databases/KINASE/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt",
-           subsetList=KINASES, mergeSpecies=True)
+mitabToGMT(iREF_df, "X2K_Databases/KINASE/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt", subsetList=KINASES, mergeSpecies=True)
 # ## All Genes  (takes a long time)
-mitabToGMT(mouse_human_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt",
-           subsetList="", mergeSpecies=True)
+mitabToGMT(iREF_df, "X2K_Databases/PPI/iREF/Processing/iREF_02-2018_Mouse-Human_AllGenes-Merged.gmt", subsetList="", mergeSpecies=True)
+
+
+
+
 
 
 # -----------iPTMnet-----------
@@ -783,6 +840,7 @@ with open("X2K_Databases/KINASE/NetworkIN/NetworkIN-05-2017_UnknownSpecies_KINAS
         newName = newK+"_KinaseGroup:"+group+"-KinaseFamily:"+family+"-NetworkIN_UnknownSpecies_"
         newNet.write(newName+"\t\t"+"\t".join(substrates)+"\n")
 
+
 # -----------HMS LINCS KINOMEscan-----------
 kscan = pd.read_excel("X2K_Databases/General_Resources/KINOMEscan/Processing/HMS-LINCS_KinomeScan_Datasets_2017-10-23.xlsx")
 kscanProts = pd.read_excel("X2K_Databases/General_Resources/KINOMEscan/Processing/proteins_20180116225538.xlsx")
@@ -868,3 +926,115 @@ for db in allDbs:
             newName = k+"_"+"-".join(["KinaseGroup:"+group,"KinaseFamily:"+family,db])+"_UnknownSpecies_"
             if len(substrates)>=1:
                 newGMT.write(newName+"\t\t"+"\t".join(substrates)+"\n")
+
+
+
+
+
+# -----------MINT 2018-----------
+import os
+import pandas as pd
+## colNames info found here: https://psicquic.github.io/MITAB27Format.html
+colNames = ["uniprotA", "uniprotB", "InteractionID", "InteractionID2","GeneInfoA","GeneInfoB","InteractionMethods","Authors","PMID","SpeciesA", "SpeciesB", "InteractionType", "SourceDatabase", "InteractionID3", "ConfidenceScore"]
+hMINT = pd.read_table("X2K_Databases/PPI/MINT/Processing/MINT-03-2018_Human_raw.txt", names=colNames)
+
+# Show contents example
+for i in range(0,14):
+    print(str(i) + ":    "+ hMINT.iloc[:,i][0] )
+
+mMINT = pd.read_table("X2K_Databases/PPI/MINT/Processing/MINT-03-2018_Mouse_raw.txt", names=colNames)
+#MINT = hMINT.append(mMINT)
+
+def extractMINT(MINTdf, SPECIES="", writeCSV=True):
+    newCols = ["UniprotA", "UniprotB", "GeneSymbolA", "GeneSymbolB", "SpeciesA", "SpeciesB", "PMID", "ConfidenceScore","InteractionType", "SPECIES"]
+    newDF=pd.DataFrame(columns=newCols)
+    import numpy as np
+
+    def getGeneSymbol(raw):
+        geneInfo = raw.split("|")
+        for item in geneInfo:
+            if item.endswith("(gene name)"):
+                GeneSymbol = item.split(":")[1].replace("(gene name)", "")
+                break
+            elif item != "-":
+                GeneSymbol = item.split(":")[1].split("(")[0].split("_")[0]
+            else:
+                GeneSymbol = "NA"
+        return GeneSymbol
+    def getSpecies(raw):
+        if raw=="-":
+            species = "NA"
+        else:
+            species = raw.split("|")[0].split("(")[1].strip(')')
+        return species
+    def getPMID(raw):
+        pmidInfo = raw.split("|")
+        for item in pmidInfo:
+            if item.startswith("pubmed"):
+                pmid = item.replace("pubmed:","")
+                break
+            else:
+                pmid = "NA"
+        return pmid
+    def getConfidence(raw):
+        if raw=="-":
+            CS = "NA"
+        else:
+            CS = raw.split(":")[1]
+        return CS
+    def getInteraction(raw):
+        if raw=="-":
+            inter = "NA"
+        else:
+            inter = "_".join( raw.split("(")[1].strip(")").split(" ") )
+        return inter
+    for i,row in MINTdf.iterrows():
+        print(str(i)+" : "+str(round(i/MINTdf.shape[0]*100,2)),"% complete")
+        UniprotA = row.uniprotA.replace('uniprotkb:', '')
+        UniprotB = row.uniprotB.replace('uniprotkb:', '')
+        GeneSymbolA = getGeneSymbol(row.GeneInfoA)
+        GeneSymbolB = getGeneSymbol(row.GeneInfoB)
+        SpeciesA = getSpecies(row.SpeciesA)
+        SpeciesB = getSpecies(row.SpeciesB)
+        PMID = getPMID(row.PMID)
+        ConfidenceScore  = getConfidence(row.ConfidenceScore)
+        InteractionType = getInteraction(row.InteractionType)
+        newDF = newDF.append( pd.DataFrame(np.column_stack([UniprotA, UniprotB, GeneSymbolA, GeneSymbolB, SpeciesA, SpeciesB, PMID, ConfidenceScore, InteractionType, SPECIES]), columns=newCols) )
+    if writeCSV==True:
+        newDF.to_csv("X2K_Databases/PPI/MINT_2018/MINT_"+SPECIES+"_table.csv")
+    return newDF
+
+# mouseDF = extractMINT(mMINT, "Mouse")
+mouseDF = pd.read_csv("X2K_Databases/PPI/MINT_2018/Processing/MINT_Mouse_table.csv")
+# humanDF = extractMINT(hMINT, "Human")
+humanDF = pd.read_csv("X2K_Databases/PPI/MINT_2018/Processing/MINT_Human_table.csv")
+
+MINTdf2 = mouseDF.append(humanDF)
+MINTdf2['ConfidenceScore'] = pd.to_numeric(MINTdf2.ConfidenceScore, errors='coerce')*1.00
+MINTdf2.head()
+
+def MINTtoKinaseGMT(MINTdf2, species=""):
+    with open("X2K_Databases/KINASE/MINT_2018/MINT-03-2018_"+species+"_KINASE.gmt", "w") as GMT:
+        MINTkin = MINTdf2[MINTdf2.GeneSymbolA.isin(KINASES)]
+        for gene in list(MINTkin.GeneSymbolA.unique()):
+            df = MINTkin[MINTkin.GeneSymbolA==gene]
+            dfGrouped  = df.groupby('GeneSymbolB').mean()
+            interactors = list( dfGrouped.sort_values(by=['ConfidenceScore'], ascending=False).index )
+            newName = "MINT-03-2018_Kinases"+species
+            if len(interactors)>=5:
+                GMT.write(gene+"\t"+newName+"\t"+"\t".join(interactors)+"\n")
+MINTtoKinaseGMT(MINTdf2, "Mouse-Human")
+
+def MINTtoPPIsig(MINTdf2, species=""):
+    sigDF = MINTdf2.loc[:,["GeneSymbolA", "GeneSymbolB", "SPECIES", "ConfidenceScore", "InteractionType", "PMID"]]
+    sigDF['GeneSymbolA'] = sigDF['GeneSymbolA'].str.upper()
+    sigDF['GeneSymbolB'] = sigDF['GeneSymbolB'].str.upper()
+    # Insert NA cols
+    NAs = pd.Series(["NA"]*MINTdf2.shape[0])
+    for ind in range(4):
+        sigDF.insert(loc=1, column="NA"+str(ind), value=NAs)
+    for ind in range(3):
+        sigDF.insert(loc=6, column="NA"+str(ind+4), value=NAs)
+    sigDF.to_csv("X2K_Databases/PPI/MINT_2018/MINT-03-2018_" + species + "_PPI.sig", sep=" ", header=False, index=False)
+MINTtoPPIsig(MINTdf2, species='Mouse-Human')
+

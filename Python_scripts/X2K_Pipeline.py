@@ -272,19 +272,19 @@ def X2K_fitness(binary, fitness_method='simple'):
         print("Calculating 'presence/absence' fitness...")
         with open (directory+"output/kea_out.txt") as KEA_output:
             KEA_lines = KEA_output.readlines()
-            scaledOverlapScores=[]
+        scaledOverlapScores=[]
 
-            for line in KEA_lines:
-                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Create lists of recovered and missed kinases
-                overlappingKinases = list( set(targetKinases) & set(predictedKinases) )
-                scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases) )
+        for line in KEA_lines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            if predictedKinases != []:
+                predictedKinases[-1] = predictedKinases[-1].strip()
+            # Create lists of recovered and missed kinases
+            overlappingKinases = list( set(targetKinases) & set(predictedKinases) )
+            scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases) )
 
-            # Calculate individual's  fitness score
-            fitness_score = sum(scaledOverlapScores) / len(scaledOverlapScores)
-            print("Individual's fitness = " + str(fitness_score))
+        # Calculate individual's  fitness score
+        fitness_score = sum(scaledOverlapScores) / len(scaledOverlapScores)
+        print("Individual's fitness = " + str(fitness_score))
 
 
     # [2] Rank-weighted fitness
@@ -296,31 +296,30 @@ def X2K_fitness(binary, fitness_method='simple'):
         print("Calculating <"+fitness_method+"> fitness...")
         with open(directory + "output/kea_out.txt") as KEA_output:
             KEA_lines = KEA_output.readlines()
-            tkRankRatios_avgs = []
-            for line in KEA_lines:
-                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                # Repeat for each targetKinase
-                tkRankRatios=[]
-                for tk in targetKinases:
-                    # Remove any other targetKinases form predictedKinases list
-                    if len(targetKinases)>1:
-                        predictedSubset = list( set(predictedKinases)- (set(targetKinases) - set([tk])) )
-                    else:
-                        predictedSubset = predictedKinases
-                    # If targetKinase is in predictedKinases find 1/rank
-                    if tk in predictedSubset:
-                        rankRatio = (len(predictedSubset)-predictedSubset.index(tk)) / len(predictedSubset)
-                        # Add a power function to make top-weighted (lower ranks count exponentially less)
-                        topWeighted_rankRatio = pow(rankRatio, 2)
-                        tkRankRatios.append(topWeighted_rankRatio)
-                    else:
-                        tkRankRatios.append(0)
-                # if sum(tkRankRatios) !=0:
-                #     # Divide by the number of targetKinases to adjust for the number of possible hits
-                #     tkRankRatios_avgs.append( sum(tkRankRatios) / len(targetKinases) )
-                # else:
-                #     tkRankRatios_avgs.append(0)
-            fitness_score = sum(tkRankRatios) / len(tkRankRatios)
+        for line in KEA_lines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            # Repeat for each targetKinase
+            tkRankRatios=[]
+            for tk in targetKinases:
+                # Remove any other targetKinases form predictedKinases list
+                if len(targetKinases)>1:
+                    predictedSubset = list( set(predictedKinases)- (set(targetKinases) - set([tk])) )
+                else:
+                    predictedSubset = predictedKinases
+                # If targetKinase is in predictedKinases find 1/rank
+                if tk in predictedSubset:
+                    rankRatio = (len(predictedSubset)-predictedSubset.index(tk)) / len(predictedSubset)
+                    # Add a power function to make top-weighted (lower ranks count exponentially less)
+                    topWeighted_rankRatio = pow(rankRatio, 2)
+                    tkRankRatios.append(topWeighted_rankRatio)
+                else:
+                    tkRankRatios.append(0)
+            # if sum(tkRankRatios) !=0:
+            #     # Divide by the number of targetKinases to adjust for the number of possible hits
+            #     tkRankRatios_avgs.append( sum(tkRankRatios) / len(targetKinases) )
+            # else:
+            #     tkRankRatios_avgs.append(0)
+        fitness_score = sum(tkRankRatios) / len(tkRankRatios)
 
         print("Individual's fitness = " + str(fitness_score))
 
@@ -350,23 +349,21 @@ def X2K_fitness(binary, fitness_method='simple'):
     if fitness_method == 'Rank-Biased Overlap':
         print("Calculating "+fitness_method+" fitness...")
         from Python_scripts.rbo import rbo
-
         with open(directory+"output/kea_out.txt") as KEA_output:
-            rboScores=[]
             KEA_out = KEA_output.readlines()
-            #line = "CPC005_PC3_24H-indirubin-10.0_[CDK1|CDK5|GSK3A]_up		USP15	DUSP6	YIPF	IDUA	CHRNA5	SYNRG	AURKA	IFT122	PHKA	GAL	PTMA	IDS	REEP4	HMOX	NPHP4	RREB	ATP5SL"
-            for line in KEA_out:
-                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                # As long as the kinase list is not blank, get rid of \n in last item
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Conduct RankedBasedOrder statistic (0-1 score)
-                if len(predictedKinases)>0:
-                    rboResults = rbo(targetKinases, predictedKinases, .9)
-                    rboScores.append(rboResults['res'])
-                else: rboScores.append(0)
-                # Get the average RBO score
-                fitness_score = sum(rboScores) / len(rboScores)
+        rboScores = []
+        for line in KEA_out:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            # As long as the kinase list is not blank, get rid of \n in last item
+            if predictedKinases != []:
+                predictedKinases[-1] = predictedKinases[-1].strip()
+            # Conduct RankedBasedOrder statistic (0-1 score)
+            if len(predictedKinases)>0:
+                rboResults = rbo(targetKinases, predictedKinases, .9)
+                rboScores.append(rboResults['res'])
+            else: rboScores.append(0)
+            # Get the average RBO score
+            fitness_score = sum(rboScores) / len(rboScores)
 
             print("Individual's fitness = " + str(fitness_score))
 
@@ -376,18 +373,21 @@ def X2K_fitness(binary, fitness_method='simple'):
         ## Developed by Brian M. Schilder
         if fitness_method == 'modified RankBiasedOverlap':
             print("Calculating <" + fitness_method + "> fitness...")
+
             from Python_scripts.rboScore import getRBOScore
+
             with open(directory + "output/kea_out.txt") as KEA_output:
                 KEA_lines = KEA_output.readlines()
-                rboScores=[]
-                for line in KEA_lines:
-                    targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                    print(line)
-                    if len(set(targetKinases).intersection(set(predictedKinases))) > 0:
-                        rboScores.append( getRBOScore(targetKinases, predictedKinases) )
-                    else: rboScores.append(0.0)
-                # Calculate rank-weighted fitness
-                fitness_score = sum(rboScores) / len(rboScores)
+            rboScores=[]
+            for line in KEA_lines:
+                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+                print(line)
+                # If there's any target hits in the predicted output, calculate score. Otherwise, save time by just appending a 0.0.
+                if len(set(targetKinases).intersection(set(predictedKinases))) > 0:
+                    rboScores.append( getRBOScore(targetKinases, predictedKinases) )
+                else: rboScores.append(0.0)
+            # Calculate average rank-weighted fitness
+            fitness_score = sum(rboScores) / len(rboScores)
             print("Individual's fitness = " + str(fitness_score))
 
     return fitness_score, average_PPI_size

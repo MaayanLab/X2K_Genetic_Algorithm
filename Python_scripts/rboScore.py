@@ -7,7 +7,7 @@
 def getRBOScore(predicted, target):
     # RBO score
     # From:
-    def rboScore(l1, l2, p=0.98):
+    def rbo(l1, l2, p=0.98):
         """
             Calculates Ranked Biased Overlap (RBO) score.
             l1 -- Ranked List 1
@@ -74,10 +74,13 @@ def getRBOScore(predicted, target):
     # Iterate over all possible combinations of target list and take the one that gives the best RBO score
     import itertools
     lst=[]
+    # Since all permutations will have the same length, can just calculate optimized P beforehand
     P = getP(len(predicted))
+    # Repeat rbo for all permutations of the target list, and then simply take the highest scoring one
+    ## ...because the target list is unranked, and therefore the order doesn't matter.
     for itterTarget in list(itertools.permutations(target)):
         print("test 1")
-        lst.append( rboScore(predicted, list(itterTarget), P) )
+        lst.append( rbo(predicted, list(itterTarget), P) )
         print("test 2")
     print("P="+str(P)+";  RBOscore="+str(max(lst)))
     return max(lst)
