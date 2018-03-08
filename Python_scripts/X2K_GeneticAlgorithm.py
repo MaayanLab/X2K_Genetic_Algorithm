@@ -188,6 +188,7 @@ def mutateChild(child, mutationRate):
 import numpy as np
 def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation, mutationRate):
     import numpy as np
+    from random import random
     children = []
     breedingChances = []
     # Add noise to fitness score?
@@ -226,6 +227,7 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
     peakFitness = []
     average_PPI_sizes = []
     genCount = 0
+    from random import random
     # Loop through n generationss
     for i in range(numberOfGenerations):
         genCount += 1
@@ -335,7 +337,7 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1
 
 ## Run GA with Subset1
 FITNESS_METHOD='target-adjusted overlap'
-GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=43, numberOfGenerations=50, topNum=10, childrenPerGeneration=90, crossoverPoints=7, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
+GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90, crossoverPoints=5, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
 
 
@@ -398,7 +400,7 @@ for generation in allFitnesses_Subset2:
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GA_results_GEO.RankWeightedMean.npy'
+GA_output_name = 'GA_results_GEO.wPPIlimiters_20gen.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):

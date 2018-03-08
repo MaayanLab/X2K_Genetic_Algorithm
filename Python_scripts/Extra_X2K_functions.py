@@ -1,65 +1,129 @@
-
+# binaryString = '0110110100001010110101101101100000001011000'
+# GA_Results = GAresults_Subset1
+import numpy as np
+GA_output_name = 'GA_results_GEO.wPPIlimiters.npy'
+results_file = 'X2K_Genetic_Algorithm/GA_Results/GEO/'+GA_output_name
+GAresults = np.load(results_file)[0]
 
 
 # Tells you the parameters for a given binary string
-def tell_parameters(binary, verbose=True):
-    # Readjust bit parameters if length of binary string changes
-    bit_dict = {"TF_sort": binary[0:2],
-                "TF_species": binary[2:4],
-                "TF_databases": binary[4:6],
-                "TF_background": binary[6:8],
-                "TF_topTFs": binary[8:10],
-                "PPI_databases": binary[10:28],
-                "PPI_pathLength": binary[28:29],
-                "KINASE_sort": binary[29:31],
-                "KINASE_interactome": binary[31:33],
-                "KINASE_background": binary[33:35]
-                }
-    KINASE_topKinases = 20 # Should be consistent for every individual
+def tell_parameters(binaryString, verbose=True):
+    constantBackground = "humanarchs4"
 
     # CHEA OPTIONS ############
-    TF_sort = {"10":"oddsratio", "01":"combined_score", "11":"rank", "00":"pvalue"}
-    TF_species = {"10":"human", "01":"mouse", "11":"both", "00":"RESHUFFLE"}
-    TF_databases = {"10":"chea", "01":"transfac", "11":"both", "00":"RESHUFFLE"}
-    TF_background = {"10":"humanarchs4", "01":"humanarchs4", "11":"humanarchs4", "00":"RESHUFFLE"}
-    TF_topTFs = {"10":5, "01":10, "11":20, "00":"RESHUFFLE"}
+    if constantBackground == False:
+        TF_background = {"10": "humanarchs4", "01": "mousearchs4", "11": "hg133", "00": "RESHUFFLE"}
+    else:
+        TF_background = {"10": constantBackground, "01": constantBackground, "11": constantBackground,
+                         "00": constantBackground}
+    TF_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
+    TF_species = {"10": "human", "01": "mouse", "11": "both", "00": "RESHUFFLE"}
+    TF_topTFs = {"10": 5, "01": 10, "11": 20, "00": "RESHUFFLE"}
+    # TF_databases = ["ARCHS4", "CHEA", "CREEDS", "ENCODE", "ENRICHR", "HUMAP", "IREF", "JASPAR-TRANSFAC", "TF-PPI","TF-LOF"]
+    TF_databases = {"10": "chea", "01": "transfac", "11": "both", "00": "RESHUFFLE"}
 
     # G2N OPTIONS ############
-    ## Databases
-    all_PPI_databases = ["BIND", "BIOCARTA", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG",
-                         "MINT", "MIPS", "MURPHY", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL",
-                         "HUMAP"]  # "BIOGRID", "KEA"
-    PPI_dbs = []
-    PPI_string = bit_dict["PPI_databases"]
-    bit_dict["PPI_databases"] = PPI_string
-    ### Generate list of G2N databases
-    for ind,bit in enumerate(PPI_string):
-        if bit == "1":
-            PPI_dbs.append( all_PPI_databases[ind] )
-    PPI_databases = ",".join(PPI_dbs)
-    ## Path length
-    PPI_pathLength = {"0":1, "1":1} # CHANGE BACK AFTER THIS RUN
+    PPI_pathLength = {"0": 1, "1": 1}
+    PPI_minLength = {"10": 1, "01": 5, "11": 10, "00": 20}
+    PPI_maxLength = {"10": 50, "01": 100, "11": 200, "00": 500}
+    PPI_finalSize = {"10": 50, "01": 100, "11": 200, "00": 500}
+    PPI_databases = ["BIND", "BIOGRID", "BIOCARTA", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG", \
+                     "MINT", "MIPS", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP", "IREF",
+                     "BIOPLEX"]  # "KEA", "MURPHY", **** ,
+    # KEA OPTIONS ############
+    if constantBackground == False:
+        KINASE_background = {"10": "humanarchs4", "01": "mousearchs4", "11": "hg133", "00": "RESHUFFLE"}
+    else:
+        KINASE_background = {"10": constantBackground, "01": constantBackground, "11": constantBackground,
+                             "00": constantBackground}
+    KINASE_topKinases = 20  # Should be consistent for every individual
+    KINASE_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
+    # KINASE_databases = ["CREEDS", "iPTMnet", "iREF", "MINT", "HPRD", "PHOSPHOELM", "PHOSPHOPOINT", "PHOSPHOSITE",  "PHOSPHOSITEPLUS", "NETWORKIN"]
+    KINASE_databases = {"10": "KP", "01": "P", "11": "RESHUFFLE", "00": "RESHUFFLE"}
+
+    # Flexibly create a dictionary for each bit value and its meaning depending on the particular set of variables
+    parameterList = ["TF_sort", "TF_species", "TF_databases", "TF_background", "TF_topTFs", "PPI_databases",
+                     "PPI_pathLength", "PPI_minLength", "PPI_maxLength", "PPI_finalSize", "KINASE_sort",
+                     "KINASE_databases", "KINASE_background"]
+    # def constructBitDict(parameterList, binaryString):
+    bit_dict = {}
+    prevBits = 0
+    for param in parameterList:
+        realParam = eval(param)
+        # Get the number of necessary bits for the specific parameter
+        if type(realParam) == dict:
+            numBits = len(next(iter(realParam.keys())))
+        elif type(realParam) == list:
+            numBits = len(realParam)
+        # Assign positions of first and last bits within binaryString
+        firstBit = prevBits
+        lastBit = firstBit + numBits
+        bit_dict[param] = binaryString[firstBit:lastBit]
+        prevBits = prevBits + numBits
+        # return bitDict
+
+    # bit_dict = constructBitDict(parameterList, binaryString)
+
+    def totalBitLength():
+        totalLength = 0
+        for string in bit_dict.values():
+            totalLength = totalLength + len(string)
+        print(totalLength)
+
+    # totalBitLength()
 
 
-    ############ KEA OPTIONS ############
-    KINASE_sort = {"10":"oddsratio", "01":"combined_score", "11":"rank", "00":"pvalue"}
-    KINASE_interactome = {"10":"KP", "01":"P", "11":"RESHUFFLE", "00":"RESHUFFLE"}
-    KINASE_background = {"10":"humanarchs4", "01":"humanarchs4", "11":"humanarchs4", "00":"RESHUFFLE"}
+    # General function for converting binary into list of selected databases
+    def selectDatabases(databaseType, fullDatabaseList):
+        # ******* Turn off specific databases *******
+        # ppi_list = list(PPI_string)
+        # ppi_list[2] = '0'  # Turn off BIOGRID PPI
+        # ppi_list[8] = '0'  # Turn off KEA PPI
+        # PPI_string = "".join(ppi_list)
+        # bit_dict["PPI_databases"] = PPI_string
+        # *******************************************
+        ### If no database selected, select at least one
+        dbs = []
+        binaryString = bit_dict[databaseType + "_databases"]
+        from random import randint
+        while sum(map(int, binaryString)) == 0:
+            binaryList = list(binaryString)
+            binaryList[randint(0, (len(binaryList)) - 1)] = '1'
+            # ******* Turn off specific databases ******* AGAIN just in case it picked one of these
+            # ppi_list[2] = '0'  # Turn off BIOGRID PPI
+            # ppi_list[8] = '0'  # Turn off KEA PPI
+            binaryString = "".join(binaryList)
+            bit_dict[databaseType + "_databases"] = binaryString
+        ### Generate list of G2N databases
+        for ind, bit in enumerate(bit_dict[databaseType + "_databases"]):
+            if bit == "1":
+                dbs.append(fullDatabaseList[ind])
+        selectedDatabases = ",".join(dbs)
+        return selectedDatabases
 
-    parametersList = ["TF_sort","TF_species","TF_databases","TF_background", "TF_topTFs", "PPI_pathLength", "KINASE_sort", "KINASE_interactome", "KINASE_background"]
+    # ############ CHEA Databases ############
+    # selectedTFdatabases = selectDatabases("TF", TF_databases)
+    # ############ G2N Databases ############
+    selectedPPIdatabases = selectDatabases("PPI", PPI_databases)
+    # ############ KEA Databases ############
+    # selectedKINASEdatabases = selectDatabases("KINASE", KINASE_databases)
+
+    # Reshuffle
+    shuffleList = ["TF_sort", "TF_species", "TF_background", "TF_topTFs", "KINASE_sort", "KINASE_background"]
     from random import choice
     # RESHUFFLE any bits that aren't legitimate options
-    for param in parametersList:
+    for param in shuffleList:
         bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
         good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
         current_bits = bit_dict[param]
         if current_bits in bad_bits:
-            bit_dict[param] = choice( good_bits )
-            #print("Reshuffling...")
+            bit_dict[param] = choice(good_bits)
+            # print("Reshuffling...")
+
     # Tell X2K parameters
     TF_params = ';'.join( ["run", TF_sort[bit_dict["TF_sort"]], TF_species[bit_dict["TF_species"]], TF_databases[bit_dict["TF_databases"]], TF_background[bit_dict["TF_background"]], str(TF_topTFs[bit_dict["TF_topTFs"]]) ] )
-    PPI_params = ';'.join(["run",PPI_databases, str(PPI_pathLength[bit_dict["PPI_pathLength"]]) ])
-    KINASE_params = ';'.join(["run", KINASE_sort[bit_dict["KINASE_sort"]], KINASE_background[bit_dict["KINASE_background"]], KINASE_interactome[bit_dict["KINASE_interactome"]], str(KINASE_topKinases)  ])
+    PPI_params = ';'.join(["run", selectedPPIdatabases, str(PPI_pathLength[bit_dict["PPI_pathLength"]]), str(PPI_minLength[bit_dict["PPI_minLength"]]), str(PPI_maxLength[bit_dict["PPI_maxLength"]]), str(PPI_finalSize[bit_dict["PPI_finalSize"]]) ])
+    KINASE_params = ';'.join(["run", KINASE_sort[bit_dict["KINASE_sort"]], KINASE_background[bit_dict["KINASE_background"]], KINASE_databases[bit_dict["KINASE_databases"]], str(KINASE_topKinases)  ])
     if(verbose==True):
         print()
         print( "___TF (CHEA) Parameters___")
@@ -110,7 +174,6 @@ def parameterDF(GAresults):
         for item in sublist:
             average_PPI_size.append(item)
 
-
     # Compile parameters into dataframe
     ## Initialize lists
     tf_sort = []
@@ -118,11 +181,16 @@ def parameterDF(GAresults):
     tf_databases = []
     tf_background = []
     tf_topTFs = []
+
     ppi_databases = []
     ppi_pathLength = []
+    ppi_minLength = []
+    ppi_maxLength = []
+    ppi_finalSize = []
+
     kinase_sort = []
     kinase_background = []
-    kinase_interactome = []
+    kinase_databases = []
     kinase_topKinases = []
     for individual in superPopulation:
         params = tell_parameters(individual, verbose=False)
@@ -137,11 +205,14 @@ def parameterDF(GAresults):
         ppi_params = params[1].split(";")
         ppi_databases.append(ppi_params[1])
         ppi_pathLength.append(ppi_params[2])
+        ppi_minLength.append(ppi_params[3])
+        ppi_maxLength.append(ppi_params[4])
+        ppi_finalSize.append(ppi_params[5])
         ## KEA
         kinase_params = params[2].split(";")
         kinase_sort.append(kinase_params[1])
         kinase_background.append(kinase_params[2])
-        kinase_interactome.append(kinase_params[3])
+        kinase_databases.append(kinase_params[3])
         kinase_topKinases.append(kinase_params[4])
     # Turn lists into dictionary
     import pandas as pd
@@ -156,9 +227,12 @@ def parameterDF(GAresults):
          'TF_topTFs':pd.Categorical(tf_topTFs),
          'PPI_databases':pd.Categorical(ppi_databases),
          'PPI_pathLength':pd.Categorical(ppi_pathLength),
+         'PPI_minLength':pd.Categorical(ppi_minLength),
+         'PPI_maxLength':pd.Categorical(ppi_maxLength),
+         'PPI_finalSize':pd.Categorical(ppi_finalSize),
          'KINASE_sort':pd.Categorical(kinase_sort),
          'KINASE_background':pd.Categorical(kinase_background),
-         'KINASE_interactome':pd.Categorical(kinase_interactome),
+         'KINASE_databases':pd.Categorical(kinase_databases),
          'KINASE_topKinases':pd.Categorical(kinase_topKinases),
          'Average_PPI_size':pd.Series(average_PPI_size)
          }
@@ -181,7 +255,6 @@ def freqTable(data, parameter):
 # import numpy as np
 # GA = np.load("GA_Results/GA_results.100pop.50gen.3sortOptions.npy")
 # GAresults = GA[0]
-
 
 # Make super awesome plot showing evolution of parameter distribution over generations/time
 def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
@@ -235,7 +308,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     plt.ylabel('PPI Size', rotation=0, labelpad=50, fontsize=12)
     plt.tick_params(axis='x', labelbottom='off')
     plt.tick_params(axis='y', labelsize=7)
-    plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
+    #plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
     plt.xticks(np.arange(1, max(x) + 1, 1))
 
     # Parameter plots
@@ -265,6 +338,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
             plt.tick_params(axis='x', labelbottom='off')
             plt.xlabel('')
 
+parameterEvolutionPlot(GAresults)
 
 
 def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6)):
