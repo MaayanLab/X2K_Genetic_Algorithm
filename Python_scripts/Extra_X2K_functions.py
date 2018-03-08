@@ -217,7 +217,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     plt.xlabel('Generation', fontsize=12)
     plt.ylabel('Fitness', fontsize=12)
     plt.tick_params(axis='x', labelsize=12)
-    plt.legend(loc='lower right', borderaxespad=2)
+    plt.legend(loc='lower left', borderaxespad=2)
     plt.ylim([0, max(data['Fitness'])+5])
     plt.subplots_adjust(right=padRight, left=padLeft)
     plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=1)  # bbox_to_anchor=(horizontal, vertical)

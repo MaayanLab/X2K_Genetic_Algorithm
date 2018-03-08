@@ -1,13 +1,18 @@
 #    target = ['q']
 #    predicted = ['a', 'q', 'd', 'c']
 
+# target = targetKinases
+# predicted = predictedKinases
+
+
+
 # getRBOScore(target, predicted)
 # line =  'GSK3B_KNOCKDOWN_206_GDS4305_DN,MAPK1,CSNK2A1,RPS6KA4,RPS6KA1,MAPK14,CDK2,TAF1,MAPK8,MAPK3,GSK3B,MAP2K1,CSNK2A2,CDK1,MAPKAPK2,MAP3K8,MAPK9,PRKDC,HIPK2,RPS6KA5,RPS6KA2\n',
-
+# line = 'MELK_KNOCKDOWN_150_GSE32873_DN,TBK1,MAP3K7,MELK,IKBKE,MAPK1,AKT1,BMPR1B,TGFBR1,MAPK8,MAP3K14,HIPK2,RIPK3,IKBKB,MAPK3,CHUK,PLK1,HIPK3,CAMK4,ACVR1B,MAPKAPK2'
 def getRBOScore(predicted, target):
     # RBO score
     # From:
-    def rboScore(l1, l2, p=0.98):
+    def rbo(l1, l2, p=0.98):
         """
             Calculates Ranked Biased Overlap (RBO) score.
             l1 -- Ranked List 1
@@ -58,7 +63,6 @@ def getRBOScore(predicted, target):
         p = 0.999
         print("Starting at W="+str(w)+"; P="+str(p))
         w_list=[]; p_list=[]
-        print()
         while (w < 0.90 and p>0.01): # Adjust max w to change the % of weight that's captured in up until the depth d
             sumX = 0
             for i in np.arange(1, d):
@@ -74,10 +78,13 @@ def getRBOScore(predicted, target):
     # Iterate over all possible combinations of target list and take the one that gives the best RBO score
     import itertools
     lst=[]
+    # Since all permutations will have the same length, can just calculate optimized P beforehand
     P = getP(len(predicted))
+    # Repeat rbo for all permutations of the target list, and then simply take the highest scoring one
+    ## ...because the target list is unranked, and therefore the order doesn't matter.
     for itterTarget in list(itertools.permutations(target)):
         print("test 1")
-        lst.append( rboScore(predicted, list(itterTarget), P) )
+        lst.append( rbo(predicted, list(itterTarget), P) )
         print("test 2")
     print("P="+str(P)+";  RBOscore="+str(max(lst)))
     return max(lst)

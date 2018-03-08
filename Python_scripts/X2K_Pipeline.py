@@ -1,6 +1,10 @@
 #############################################################################################
 ##################### X2K: Pipeline & Fitness Function #####################
 #############################################################################################
+# lsof -i tcp:5001
+# COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+# java    70871 schilder    5u  IPv6 0x7d91bfdfeea593bd      0t0  TCP *:commplex-link (LISTEN)
+# kill 70871
 
 # # Create test individual
 # from random import choice
@@ -10,9 +14,9 @@
 #         populationinit.append(''.join(choice(('0', '1')) for _ in range(parameterLength)) )
 #         print(populationinit[i])
 #     return populationinit
-# parameterLength = 28
+# parameterLength = 43
 # populationInit = createPopulation(10,parameterLength)
-# binary = populationInit[0]
+# binaryString = populationInit[0]
 
 # For checking whether the bit_dict is recording the right parameters
 # def makeString(length):
@@ -22,82 +26,117 @@
 #     for i in range(length):
 #         letters.append(random.choice(string.ascii_lowercase))
 #     return ''.join(letters)
-# binary = makeString(35)
+# binary = makeString(100)
+
 
 directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
 #directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
 
-# binary = '11010101111110001100010001110001111'
+# binaryString = '0110110100001010110101101101100000001011000'
 
 # X2K Fitness Function for GA
-def X2K_fitness(binary, fitness_method='simple'):
+def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     ######################################
     #### Convert Binary to Parameters ####
     ######################################
-
-    # Readjust bit parameters if length of binary string changes
-    bit_dict = {"TF_sort": binary[0:2],
-                "TF_species": binary[2:4],
-                "TF_databases": binary[4:6],
-                "TF_background": binary[6:8],
-                "TF_topTFs": binary[8:10],
-                "PPI_databases": binary[10:28],
-                "PPI_pathLength": binary[28:29],
-                "KINASE_sort": binary[29:31],
-                "KINASE_interactome": binary[31:33],
-                "KINASE_background": binary[33:35]
-                }
-    KINASE_topKinases = 20  # Should be consistent for every individual
+    constantBackground = "humanarchs4"
 
     # CHEA OPTIONS ############
+    if constantBackground == False:
+        TF_background = {"10": "humanarchs4", "01": "mousearchs4", "11": "hg133", "00": "RESHUFFLE"}
+    else:
+        TF_background = {"10": constantBackground, "01": constantBackground, "11": constantBackground,"00": constantBackground}
     TF_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
     TF_species = {"10": "human", "01": "mouse", "11": "both", "00": "RESHUFFLE"}
-    TF_databases = {"10": "chea", "01": "transfac", "11": "both", "00": "RESHUFFLE"}
-    TF_background = {"10": "humanarchs4", "01": "humanarchs4", "11": "humanarchs4", "00": "RESHUFFLE"}
     TF_topTFs = {"10": 5, "01": 10, "11": 20, "00": "RESHUFFLE"}
+    #TF_databases = ["ARCHS4", "CHEA", "CREEDS", "ENCODE", "ENRICHR", "HUMAP", "IREF", "JASPAR-TRANSFAC", "TF-PPI","TF-LOF"]
+    TF_databases = {"10": "chea", "01": "transfac", "11": "both", "00": "RESHUFFLE"}
 
     # G2N OPTIONS ############
-    ## Databases
-    all_PPI_databases = ["BIND", "BIOCARTA", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG",
-                         "MINT", "MIPS", "MURPHY", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP"] # "BIOGRID", "KEA"
-    PPI_dbs = []
-    PPI_string = bit_dict["PPI_databases"]
-    # ******* Turn off specific databases *******
-    #ppi_list = list(PPI_string)
-    #ppi_list[2] = '0'  # Turn off BIOGRID PPI
-    #ppi_list[8] = '0'  # Turn off KEA PPI
-    #PPI_string = "".join(ppi_list)
-    #bit_dict["PPI_databases"] = PPI_string
-
-    # *******************************************
-    ### If no database selected, select at least one
-    from random import randint
-    while sum(map(int, PPI_string)) == 0:
-        ppi_list = list(PPI_string)
-        ppi_list[randint(0, (len(ppi_list)) - 1)] = '1'
-        # ******* Turn off specific databases ******* AGAIN just in case it picked one of these
-        #ppi_list[2] = '0'  # Turn off BIOGRID PPI
-        #ppi_list[8] = '0'  # Turn off KEA PPI
-        PPI_string = "".join(ppi_list)
-        bit_dict["PPI_databases"] = PPI_string
-    ### Generate list of G2N databases
-    for ind, bit in enumerate(bit_dict["PPI_databases"]):
-        if bit == "1":
-            PPI_dbs.append(all_PPI_databases[ind])
-    PPI_databases = ",".join(PPI_dbs)
-    ## Path length
-    PPI_pathLength = {"0": 1, "1": 1}
-
-    ############ KEA OPTIONS ############
+    PPI_pathLength = {"0":1, "1":1}
+    PPI_minLength = {"10":1, "01":5, "11":10, "00":20}
+    PPI_maxLength = {"10":50, "01":100, "11":200, "00":500}
+    PPI_finalSize = {"10":50, "01":100, "11":200, "00":500}
+    PPI_databases = ["BIND", "BIOGRID", "BIOCARTA",  "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG", \
+                     "MINT", "MIPS", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP", "IREF", "BIOPLEX"]  # "KEA", "MURPHY", **** ,
+    # KEA OPTIONS ############
+    if constantBackground==False:
+        KINASE_background = {"10": "humanarchs4", "01": "mousearchs4", "11": "hg133", "00": "RESHUFFLE"}
+    else:
+        KINASE_background = {"10": constantBackground, "01": constantBackground, "11": constantBackground, "00": constantBackground}
+    KINASE_topKinases = 20  # Should be consistent for every individual
     KINASE_sort = {"10": "oddsratio", "01": "combined_score", "11": "rank", "00": "pvalue"}
-    KINASE_interactome = {"10": "KP", "01": "P", "11": "RESHUFFLE", "00": "RESHUFFLE"}
-    KINASE_background = {"10": "humanarchs4", "01": "humanarchs4", "11": "humanarchs4", "00": "RESHUFFLE"}
+    #KINASE_databases = ["CREEDS", "iPTMnet", "iREF", "MINT", "HPRD", "PHOSPHOELM", "PHOSPHOPOINT", "PHOSPHOSITE",  "PHOSPHOSITEPLUS", "NETWORKIN"]
+    KINASE_databases = {"10": "KP", "01": "P", "11": "RESHUFFLE", "00": "RESHUFFLE"}
 
-    parametersList = ["TF_sort", "TF_species", "TF_databases", "TF_background", "TF_topTFs", "PPI_pathLength",
-                      "KINASE_sort", "KINASE_interactome", "KINASE_background"]
+    # Flexibly create a dictionary for each bit value and its meaning depending on the particular set of variables
+    parameterList = ["TF_sort", "TF_species","TF_databases","TF_background","TF_topTFs", "PPI_databases","PPI_pathLength","PPI_minLength","PPI_maxLength","PPI_finalSize","KINASE_sort","KINASE_databases","KINASE_background"]
+    #def constructBitDict(parameterList, binaryString):
+    bit_dict={}
+    prevBits=0
+    for param in parameterList:
+        realParam = eval(param)
+        # Get the number of necessary bits for the specific parameter
+        if type(realParam)==dict:
+            numBits = len(next(iter(realParam.keys())))
+        elif type(realParam)==list:
+            numBits = len(realParam)
+        # Assign positions of first and last bits within binaryString
+        firstBit = prevBits
+        lastBit = firstBit + numBits
+        bit_dict[param] = binaryString[firstBit:lastBit]
+        prevBits = prevBits+numBits
+        #return bitDict
+    #bit_dict = constructBitDict(parameterList, binaryString)
+
+    def totalBitLength():
+        totalLength=0
+        for string in bit_dict.values():
+            totalLength = totalLength+len(string)
+        print(totalLength)
+    # totalBitLength()
+
+
+    # General function for converting binary into list of selected databases
+    def selectDatabases(databaseType, fullDatabaseList):
+        # ******* Turn off specific databases *******
+        # ppi_list = list(PPI_string)
+        # ppi_list[2] = '0'  # Turn off BIOGRID PPI
+        # ppi_list[8] = '0'  # Turn off KEA PPI
+        # PPI_string = "".join(ppi_list)
+        # bit_dict["PPI_databases"] = PPI_string
+        # *******************************************
+        ### If no database selected, select at least one
+        dbs = []
+        binaryString = bit_dict[databaseType+"_databases"]
+        from random import randint
+        while sum(map(int, binaryString)) == 0:
+            binaryList = list(binaryString)
+            binaryList[randint(0, (len(binaryList)) - 1)] = '1'
+            # ******* Turn off specific databases ******* AGAIN just in case it picked one of these
+            # ppi_list[2] = '0'  # Turn off BIOGRID PPI
+            # ppi_list[8] = '0'  # Turn off KEA PPI
+            binaryString = "".join(binaryList)
+            bit_dict[databaseType+"_databases"] = binaryString
+        ### Generate list of G2N databases
+        for ind, bit in enumerate(bit_dict[databaseType+"_databases"]):
+            if bit == "1":
+                dbs.append(fullDatabaseList[ind])
+        selectedDatabases = ",".join(dbs)
+        return selectedDatabases
+
+    # ############ CHEA Databases ############
+    # selectedTFdatabases = selectDatabases("TF", TF_databases)
+    # ############ G2N Databases ############
+    selectedPPIdatabases = selectDatabases("PPI",PPI_databases)
+    # ############ KEA Databases ############
+    # selectedKINASEdatabases = selectDatabases("KINASE", KINASE_databases)
+
+    # Reshuffle
+    shuffleList = ["TF_sort", "TF_species", "TF_background", "TF_topTFs","KINASE_sort", "KINASE_background"]
     from random import choice
     # RESHUFFLE any bits that aren't legitimate options
-    for param in parametersList:
+    for param in shuffleList:
         bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
         good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
         current_bits = bit_dict[param]
@@ -127,6 +166,7 @@ def X2K_fitness(binary, fitness_method='simple'):
 
     print("Running ChEA...")
     chea_parameters = ';'.join( ["run", TF_sort[bit_dict["TF_sort"]], TF_species[bit_dict["TF_species"]], TF_databases[bit_dict["TF_databases"]], TF_background[bit_dict["TF_background"]], str(TF_topTFs[bit_dict["TF_topTFs"]]) ] ) #"run,oddsratio,both,chea,humanarchs4,20")
+    print("CHEA Parameters:   "+chea_parameters)
     sock.sendall(bytes(chea_parameters+"\n", 'utf-8'))
 
     while 1:
@@ -153,7 +193,9 @@ def X2K_fitness(binary, fitness_method='simple'):
     allData.replace("messageComplete\n", "")
 
     print("Running G2N...")
-    g2n_parameters = ';'.join(["run",PPI_databases, str(PPI_pathLength[bit_dict["PPI_pathLength"]]) ]) + "\n"+allData+"messageComplete\n"
+    g2n_string = ';'.join(["run", selectedPPIdatabases, str(PPI_pathLength[bit_dict["PPI_pathLength"]]), str(PPI_minLength[bit_dict["PPI_minLength"]]), str(PPI_maxLength[bit_dict["PPI_maxLength"]]), str(PPI_finalSize[bit_dict["PPI_finalSize"]]) ])
+    print("G2N Parameters:   "+g2n_string)
+    g2n_parameters = g2n_string + "\n"+allData+"messageComplete\n"
     sock2.sendall(bytes(g2n_parameters+"\n", 'utf-8'))
 
     while 1:
@@ -196,7 +238,9 @@ def X2K_fitness(binary, fitness_method='simple'):
     allData3 = ""
 
     print("Running KEA...")
-    kea_parameters = ';'.join(["run", KINASE_sort[bit_dict["KINASE_sort"]], KINASE_background[bit_dict["KINASE_background"]], KINASE_interactome[bit_dict["KINASE_interactome"]], str(KINASE_topKinases)  ]) + "\n"+allData2+"messageComplete\n"
+    kea_string = ';'.join(["run", KINASE_sort[bit_dict["KINASE_sort"]], KINASE_background[bit_dict["KINASE_background"]], KINASE_databases[bit_dict["KINASE_databases"]], str(KINASE_topKinases)  ])
+    print("KEA Parameters:   "+kea_string)
+    kea_parameters = kea_string + "\n"+allData2+"messageComplete\n"
     kea_parameters.replace("messageComplete\n", "")
     sock2.sendall(bytes(kea_parameters+"\n", 'utf-8'))
 
@@ -272,19 +316,20 @@ def X2K_fitness(binary, fitness_method='simple'):
         print("Calculating 'presence/absence' fitness...")
         with open (directory+"output/kea_out.txt") as KEA_output:
             KEA_lines = KEA_output.readlines()
-            scaledOverlapScores=[]
+        scaledOverlapScores=[]
 
-            for line in KEA_lines:
-                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Create lists of recovered and missed kinases
-                overlappingKinases = list( set(targetKinases) & set(predictedKinases) )
-                scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases) )
-
-            # Calculate individual's  fitness score
+        for line in KEA_lines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            # Create lists of recovered and missed kinases
+            overlappingKinases = list( set(targetKinases) & set(predictedKinases) )
+            scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases)*100 )
+        # Calculate individual's  fitness score
+        if scaledOverlapScores!=[]:
             fitness_score = sum(scaledOverlapScores) / len(scaledOverlapScores)
-            print("Individual's fitness = " + str(fitness_score))
+        else:
+            fitness_score = 0.0
+            print("Empty KEA file...")
+        print("Individual's fitness = " + str(fitness_score))
 
 
     # [2] Rank-weighted fitness
@@ -296,31 +341,30 @@ def X2K_fitness(binary, fitness_method='simple'):
         print("Calculating <"+fitness_method+"> fitness...")
         with open(directory + "output/kea_out.txt") as KEA_output:
             KEA_lines = KEA_output.readlines()
-            tkRankRatios_avgs = []
-            for line in KEA_lines:
-                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                # Repeat for each targetKinase
-                tkRankRatios=[]
-                for tk in targetKinases:
-                    # Remove any other targetKinases form predictedKinases list
-                    if len(targetKinases)>1:
-                        predictedSubset = list( set(predictedKinases)- (set(targetKinases) - set([tk])) )
-                    else:
-                        predictedSubset = predictedKinases
-                    # If targetKinase is in predictedKinases find 1/rank
-                    if tk in predictedSubset:
-                        rankRatio = (len(predictedSubset)-predictedSubset.index(tk)) / len(predictedSubset)
-                        # Add a power function to make top-weighted (lower ranks count exponentially less)
-                        topWeighted_rankRatio = pow(rankRatio, 2)
-                        tkRankRatios.append(topWeighted_rankRatio)
-                    else:
-                        tkRankRatios.append(0)
-                # if sum(tkRankRatios) !=0:
-                #     # Divide by the number of targetKinases to adjust for the number of possible hits
-                #     tkRankRatios_avgs.append( sum(tkRankRatios) / len(targetKinases) )
-                # else:
-                #     tkRankRatios_avgs.append(0)
-            fitness_score = sum(tkRankRatios) / len(tkRankRatios)
+        for line in KEA_lines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            # Repeat for each targetKinase
+            tkRankRatios=[]
+            for tk in targetKinases:
+                # Remove any other targetKinases form predictedKinases list
+                if len(targetKinases)>1:
+                    predictedSubset = list( set(predictedKinases)- (set(targetKinases) - set([tk])) )
+                else:
+                    predictedSubset = predictedKinases
+                # If targetKinase is in predictedKinases find 1/rank
+                if tk in predictedSubset:
+                    rankRatio = (len(predictedSubset)-predictedSubset.index(tk)) / len(predictedSubset)
+                    # Add a power function to make top-weighted (lower ranks count exponentially less)
+                    topWeighted_rankRatio = pow(rankRatio, 2)
+                    tkRankRatios.append(topWeighted_rankRatio)
+                else:
+                    tkRankRatios.append(0)
+            # if sum(tkRankRatios) !=0:
+            #     # Divide by the number of targetKinases to adjust for the number of possible hits
+            #     tkRankRatios_avgs.append( sum(tkRankRatios) / len(targetKinases) )
+            # else:
+            #     tkRankRatios_avgs.append(0)
+        fitness_score = sum(tkRankRatios) / len(tkRankRatios)
 
         print("Individual's fitness = " + str(fitness_score))
 
@@ -350,23 +394,21 @@ def X2K_fitness(binary, fitness_method='simple'):
     if fitness_method == 'Rank-Biased Overlap':
         print("Calculating "+fitness_method+" fitness...")
         from Python_scripts.rbo import rbo
-
         with open(directory+"output/kea_out.txt") as KEA_output:
-            rboScores=[]
             KEA_out = KEA_output.readlines()
-            #line = "CPC005_PC3_24H-indirubin-10.0_[CDK1|CDK5|GSK3A]_up		USP15	DUSP6	YIPF	IDUA	CHRNA5	SYNRG	AURKA	IFT122	PHKA	GAL	PTMA	IDS	REEP4	HMOX	NPHP4	RREB	ATP5SL"
-            for line in KEA_out:
-                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                # As long as the kinase list is not blank, get rid of \n in last item
-                if predictedKinases != []:
-                    predictedKinases[-1] = predictedKinases[-1].strip()
-                # Conduct RankedBasedOrder statistic (0-1 score)
-                if len(predictedKinases)>0:
-                    rboResults = rbo(targetKinases, predictedKinases, .9)
-                    rboScores.append(rboResults['res'])
-                else: rboScores.append(0)
-                # Get the average RBO score
-                fitness_score = sum(rboScores) / len(rboScores)
+        rboScores = []
+        for line in KEA_out:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            # As long as the kinase list is not blank, get rid of \n in last item
+            if predictedKinases != []:
+                predictedKinases[-1] = predictedKinases[-1].strip()
+            # Conduct RankedBasedOrder statistic (0-1 score)
+            if len(predictedKinases)>0:
+                rboResults = rbo(targetKinases, predictedKinases, .9)
+                rboScores.append(rboResults['res'])
+            else: rboScores.append(0)
+            # Get the average RBO score
+            fitness_score = sum(rboScores) / len(rboScores)
 
             print("Individual's fitness = " + str(fitness_score))
 
@@ -376,18 +418,21 @@ def X2K_fitness(binary, fitness_method='simple'):
         ## Developed by Brian M. Schilder
         if fitness_method == 'modified RankBiasedOverlap':
             print("Calculating <" + fitness_method + "> fitness...")
+
             from Python_scripts.rboScore import getRBOScore
+
             with open(directory + "output/kea_out.txt") as KEA_output:
                 KEA_lines = KEA_output.readlines()
-                rboScores=[]
-                for line in KEA_lines:
-                    targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-                    print(line)
-                    if len(set(targetKinases).intersection(set(predictedKinases))) > 0:
-                        rboScores.append( getRBOScore(targetKinases, predictedKinases) )
-                    else: rboScores.append(0.0)
-                # Calculate rank-weighted fitness
-                fitness_score = sum(rboScores) / len(rboScores)
+            rboScores=[]
+            for line in KEA_lines:
+                targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+                print(line)
+                # If there's any target hits in the predicted output, calculate score. Otherwise, save time by just appending a 0.0.
+                if len(set(targetKinases).intersection(set(predictedKinases))) > 0:
+                    rboScores.append( getRBOScore(targetKinases, predictedKinases) )
+                else: rboScores.append(0.0)
+            # Calculate average rank-weighted fitness
+            fitness_score = sum(rboScores) / len(rboScores)
             print("Individual's fitness = " + str(fitness_score))
 
     return fitness_score, average_PPI_size
