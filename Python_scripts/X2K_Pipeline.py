@@ -275,25 +275,19 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
         if gmtName[0].startswith('Kinase_Perturbations_from_GEO'):
             dataType = 'GEO'
         elif gmtName[0].startswith('Chem_combo_DRH'):
-            dataType = 'L1000.DRH'
-        elif gmtName[0].startswith('LINCS-L1000_KINOMEscan'):
-            dataType = 'L1000.KINOMEscan'
+            dataType = 'L1000'
         else:
             print("Couldn't detect Validation Data type.")
         return(dataType)
     dataType = detectValidationData()
 
     def parseTargetsPredicted(line, dataType):
-        import re
         if dataType == 'GEO':
             kinaseTargets = line.split(",")[0].split("_")[0]
             predictedKinases = line.split(",")[1:]
-        elif dataType == 'L1000.DRH':
-            kinaseTargets = line.split("_")[3].strip("[").strip("]").split("|")
+        elif dataType == 'L1000':
+            kinaseTargets = line.split(",")[0].split("_")[3].strip("[").strip("]").split("|")
             predictedKinases = line.split(",")[1:]
-        elif dataType == 'L1000.KINOMEscan':
-            kinaseTargets = re.split(r'\t+', line)[0].split("_")[3].strip("[").strip("]").split("|")
-            predictedKinases = re.split(r'\t+', line)[1:]
         else:
             print("Unrecognized Validation Data Structure")
         # If it's just a string, convert to list
@@ -308,7 +302,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             predictedKinases[-1] = predictedKinases[-1].strip()
         return( [kinaseTargets, predictedKinases] )
 
-
+    # [1] Simple Presence/absence fitness:
     # [1] Simple Presence/absence fitness:
     ## Percentage of experiments whose target kinase(s) were in the predicted kinases.
     # Makes the most sense when there's only one target, so it's consisent across experiments.
