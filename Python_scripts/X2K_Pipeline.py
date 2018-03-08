@@ -53,7 +53,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     TF_databases = {"10": "chea", "01": "transfac", "11": "both", "00": "RESHUFFLE"}
 
     # G2N OPTIONS ############
-    PPI_pathLength = {"0":1, "1":2}
+    PPI_pathLength = {"0":1, "1":1}
     PPI_minLength = {"10":1, "01":5, "11":10, "00":20}
     PPI_maxLength = {"10":50, "01":100, "11":200, "00":500}
     PPI_finalSize = {"10":50, "01":100, "11":200, "00":500}
