@@ -133,15 +133,15 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     # selectedKINASEdatabases = selectDatabases("KINASE", KINASE_databases)
 
     # Reshuffle
-    shuffleList = ["TF_sort", "TF_species", "TF_background", "TF_topTFs","KINASE_sort", "KINASE_background"]
     from random import choice
     # RESHUFFLE any bits that aren't legitimate options
-    for param in shuffleList:
-        bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
-        good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
-        current_bits = bit_dict[param]
-        if current_bits in bad_bits:
-            bit_dict[param] = choice(good_bits)
+    for param in parameterList:
+        if type(eval(param))==dict:
+            bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
+            good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
+            current_bits = bit_dict[param]
+            if current_bits in bad_bits:
+                bit_dict[param] = choice(good_bits)
             # print("Reshuffling...")
 
 
@@ -272,6 +272,8 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     def detectValidationData():
         import os
         gmtName = os.listdir("data/testgmt")
+        if gmtName[0].startswith("GEO-KinasePert_L1000-DRH"):
+            dataType = 'GEO-L1000'
         if gmtName[0].startswith('Kinase_Perturbations_from_GEO'):
             dataType = 'GEO'
         elif gmtName[0].startswith('Chem_combo_DRH'):
@@ -287,6 +289,9 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             predictedKinases = line.split(",")[1:]
         elif dataType == 'L1000':
             kinaseTargets = line.split(",")[0].split("_")[3].strip("[").strip("]").split("|")
+            predictedKinases = line.split(",")[1:]
+        elif dataType == 'GEO-L1000':
+            kinaseTargets = line.split(",")[0].split("_")[-1].strip("[").strip("]").split("|")
             predictedKinases = line.split(",")[1:]
         else:
             print("Unrecognized Validation Data Structure")
