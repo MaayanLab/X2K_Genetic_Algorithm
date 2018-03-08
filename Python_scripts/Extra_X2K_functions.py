@@ -1,10 +1,10 @@
 # binaryString = '0110110100001010110101101101100000001011000'
 # GA_Results = GAresults_Subset1
-import numpy as np
-GA_output_name = 'GA_results_GEO.wPPIlimiters.npy'
-results_file = 'X2K_Genetic_Algorithm/GA_Results/GEO/'+GA_output_name
-GAresults = np.load(results_file)[0]
-
+# import numpy as np
+# GA_output_name = 'GA_results_GEO.wPPIlimiters.npy'
+# results_file = 'X2K_Genetic_Algorithm/GA_Results/GEO/'+GA_output_name
+# GAresults = np.load(results_file)[0]
+#
 
 # Tells you the parameters for a given binary string
 def tell_parameters(binaryString, verbose=True):
@@ -294,7 +294,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     plt.ylim([0, max(data['Fitness'])+5])
     plt.subplots_adjust(right=padRight, left=padLeft)
     plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=1)  # bbox_to_anchor=(horizontal, vertical)
-    plt.xticks(np.arange(1, max(x) + 1, 1))
+    plt.xticks(np.arange(1, max(x) + 1, 10))
 
 
     # Setup PPI size data:
@@ -309,7 +309,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     plt.tick_params(axis='x', labelbottom='off')
     plt.tick_params(axis='y', labelsize=7)
     #plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
-    plt.xticks(np.arange(1, max(x) + 1, 1))
+    plt.xticks(np.arange(1, max(x) + 1, 10))
 
     # Parameter plots
     import seaborn as sns
@@ -332,13 +332,13 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
         plt.tick_params(axis='x', labelsize=12)
         plt.xlabel('Generation',fontsize=12)
         plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
-        plt.xticks(np.arange(1, max(x) + 1, 1))
+        plt.xticks(np.arange(1, max(x) + 1, 10))
         plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
         if i != param_num-1: # Turn of xtick labels for all but bottom plot
             plt.tick_params(axis='x', labelbottom='off')
             plt.xlabel('')
 
-parameterEvolutionPlot(GAresults)
+# parameterEvolutionPlot(GAresults)
 
 
 def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6)):
