@@ -519,10 +519,10 @@ def backgroundToGMT(database, speciesList=["Mouse","Human"]):
         tfList = subset["GeneA"].unique()
         with open("X2K_Databases/TF/" + database + "/"+ database.upper()+"_"+species+".gmt","w") as newFile:
             for tf in tfList:
-                tf_targets = list(subset[subset["GeneA"] == tf]["GeneB"])
+                tf_targets = [x.upper() for x in list(subset[subset["GeneA"] == tf]["GeneB"])]
                 newName = database + "_" + species
                 if len(tf_targets) > 0:
-                    newFile.write(tf + "\t" + newName + "\t" + "\t".join(tf_targets) + "\n")
+                    newFile.write(tf.upper() + "\t" + newName + "\t" + "\t".join(tf_targets) + "\n")
 #backgroundToGMT(database="JASPAR", speciesList=["Mouse","Human"])
 #backgroundToGMT(database="TRANSFAC", speciesList=["Mouse","Human"])
 backgroundToGMT(database="jaspar-transfac", speciesList=["Mouse","Human"])
@@ -646,9 +646,13 @@ def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse
                     percentComplete(loopLength=len(df.hgnc_A.unique()), iteration=i)
 
 
-# iREF GMT: Species as separate lines
+# iREF GMT: Species as separate files
 ## TFs
-mitabToGMT(iREF_df, "X2K_Databases/TF/iREF/iREF_02-2018_Mouse-Human_TF.gmt", subsetList=TFs, speciesList=["Human", "Mouse"])
+TFs = list(pd.read_csv("X2K_Databases/General_Resources/compiled-TFs_Mouse-Human.csv", header=None)[0])
+mitabToGMT(mouse_df, "X2K_Databases/TF/iREF/iREF_02-2018_Mouse_TF.gmt", subsetList=TFs, speciesList=["Mouse"])
+mitabToGMT(human_df, "X2K_Databases/TF/iREF/iREF_02-2018_Human_TF.gmt", subsetList=TFs, speciesList=["Human"])
+
+# iREF GMT: Species as separate lines
 ## KINASES
 mitabToGMT(iREF_df, "X2K_Databases/KINASE/iREF/iREF_02-2018_Mouse-Human_KINASE.gmt", subsetList=KINASES, speciesList=["Human", "Mouse"])
 ## All Genes  (takes a long time)
@@ -926,6 +930,16 @@ for db in allDbs:
             newName = k+"_"+"-".join(["KinaseGroup:"+group,"KinaseFamily:"+family,db])+"_UnknownSpecies_"
             if len(substrates)>=1:
                 newGMT.write(newName+"\t\t"+"\t".join(substrates)+"\n")
+
+############ Recombine new KEA file ##########
+files = os.listdir("X2K_Databases/KINASE/")
+files.remove("KEA_datasets")
+for db in files:
+    Dir = "X2K_Databases/KINASE/"+db+"/"
+    for file in os.listdir():
+        if file.endswith(".gmt"):
+            print("F")
+
 
 
 
