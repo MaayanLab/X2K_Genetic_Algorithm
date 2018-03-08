@@ -46,9 +46,11 @@ from Python_scripts.X2K_Pipeline import X2K_fitness
 fitnessDictionary = {}
 ppiSizeDictionary = {}
 def calculateFitness(population, genCount='', fitness_method='simple'):
+    testFitness = False
     indCount = 1
     fitness = []
     avg_PPI_size = []
+
     for i in range(len(population)):
         print()
         print("****** Generation "+str(genCount)+"  ::  Individual " + str(indCount) + " ******")
@@ -59,18 +61,19 @@ def calculateFitness(population, genCount='', fitness_method='simple'):
         for root, dirs, files in os.walk(os.getcwd()):
             for file in files:
                 if file.endswith(".DS_Store"):
-                    print(os.path.join(root, file))
+                    #print(os.path.join(root, file))
                     os.remove(os.path.join(root, file))
         # Calculate fitness (ONLY if it hasn't been previously calculated)
-
         if population[i] not in fitnessDictionary:
-            # FITNESS
-            #new_fitness = sum(map(int, population[i])) # Test fitness
-            X2K_output = X2K_fitness(population[i],fitness_method)
-            new_fitness = X2K_output[0]  # Real fitness
+            if testFitness==True:
+                new_fitness = sum(map(int, population[i])) # Test fitness
+                new_PPIsize=1
+                print('Fake fitness= '+str(new_fitness))
+            else:
+                X2K_output = X2K_fitness(population[i],fitness_method)
+                new_fitness = X2K_output[0]  # Real fitness
+                new_PPIsize = X2K_output[1]
             fitness.append(new_fitness)
-            # AVERAGE PPI SIZE
-            new_PPIsize = X2K_output[1]
             avg_PPI_size.append(new_PPIsize)
             # Store calculated values in dictionaries
             fitnessDictionary[population[i]] = new_fitness
@@ -105,30 +108,27 @@ def selectFittest(topNum, population, genCount='', fitness_method='target-adjust
         print("Top fitnesses:  " + str(fittestFitness))
     elif selectionMethod == 'Tournament':
         import random; import operator
-        dataDict = {z[0]:list(z[1:]) for z in zip( list(range(0,len(population)+1)), population, populationFitness,average_PPI_size)}
-        subsetSize = int( len(population) / topNum )
-        keyList = list(dataDict.keys())
-        # Break dict into equal subsets, and get individual with top fitness from each subset
-        for num in topNum:
-            random.shuffle(keyList)
-            keySubset = keyList[:subsetSize]
-            dictSubset = {k: dataDict[k] for k in (keySubset)}
-            # Get top val
-            dicts
-            max(dictSubset.items(), key=operator.itemgetter(2))[0]
-            # Remove keys from list to make sure they don't get repeated
-            keyList = list( set(keyList) - set(keySubset))
-
-
-
-
-
-
+        # dataDict = {z[0]:list(z[1:]) for z in zip( list(range(0,len(population)+1)), population, populationFitness,average_PPI_size)}
+        # subsetSize = int( len(population) / topNum )
+        # keyList = list(dataDict.keys())
+        # # Break dict into equal subsets, and get individual with top fitness from each subset
+        # for num in topNum:
+        #     random.shuffle(keyList)
+        #     keySubset = keyList[:subsetSize]
+        #     dictSubset = {k: dataDict[k] for k in (keySubset)}
+        #     # Get top val
+        #     #dicts
+        #     max(dictSubset.items(), key=operator.itemgetter(2))[0]
+        #     # Remove keys from list to make sure they don't get repeated
+        #     keyList = list( set(keyList) - set(keySubset))
+        #
+        #
     return fittest, fittestFitness, populationFitness, average_PPI_size
 
-# selectFittest_output = selectFittest(10,populationInit)
+# selectFittest_output = selectFittest(10,population)
 # Fittest = selectFittest_output[0]
 # fittestFitness = selectFittest_output[1]
+# avgPPISize = selectFittest_output[2]
 
 
 ###################################
@@ -137,20 +137,30 @@ def selectFittest(topNum, population, genCount='', fitness_method='target-adjust
 ###################################
 # 5. Introduce random mutations
 ###################################
-
-from random import random
-def createChild(individual1, individual2, crossoverPoints):
+# individual1=population[0]
+# individual2=population[6]
+# crossoverPoints=8
+def createChild(individual1, individual2, crossoverPoints, crosspointLocations="evenly distributed"):
+    from random import sample, random
     child_fragments = []
-    chunkSize = int(len(individual1) / (crossoverPoints+1))
-    ind1Split = [individual1[i:i + chunkSize] for i in range(0, len(individual1), chunkSize)]
-    ind2Split = [individual2[i:i + chunkSize] for i in range(0, len(individual2), chunkSize)]
+    if crosspointLocations=="evenly distributed":
+        chunkSize = int(len(individual1) / (crossoverPoints+1))
+        ind1Split = [individual1[i:i + chunkSize] for i in range(0, len(individual1), chunkSize)]
+        ind2Split = [individual2[i:i + chunkSize] for i in range(0, len(individual2), chunkSize)]
+    else:
+        ind1Split=[]; ind2Split=[]
+        cutpoints = sorted(sample(range(1, len(individual1)-1), crossoverPoints)) # randomly generate n non-overlapping numbers
+        ind1Split = [individual1[num:cutpoints[i+1]] for i,num in enumerate(cutpoints)]
+        ind2Split =[]
+        for i,num in enumerate(cutpoints):
+            print(individual1[num:cutpoints[i+1]])
+            ind1Split.append(individual1[num:cutpoints[i+1]])
+
     for fragment in range(len(ind1Split)):
         if int(100 * random()) < 50: # Just randomly picks from ParentA or ParentB for each individual parameter
             child_fragments.append(ind1Split[fragment])
         else:
             child_fragments.append(ind2Split[fragment])
-            ""
-    #print(child_fragments)
     child = "".join(child_fragments)
     return child
 
@@ -158,6 +168,7 @@ def createChild(individual1, individual2, crossoverPoints):
 
 
 def mutateChild(child, mutationRate):
+    from random import random
     mutant = ''
     for bit, val in enumerate(child):
         rando = random()
@@ -174,8 +185,9 @@ def mutateChild(child, mutationRate):
     #print(str(child))
     return mutant
 
-
+import numpy as np
 def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation, mutationRate):
+    import numpy as np
     children = []
     breedingChances = []
     # Add noise to fitness score?
@@ -252,8 +264,8 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
     return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary
 
 
-GAresults = GAfunction(initialPopSize=5, parameterLength=35, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
-                       fitness_method='Rank-Weighted Mean')
+GAresults = GAfunction(initialPopSize=5, parameterLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
+                       fitness_method='target-adjusted overlap')
 
 
 allPopulations = GAresults[0]# Get all populations
@@ -322,8 +334,8 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
 
 ## Run GA with Subset1
-FITNESS_METHOD='Rank-Weighted Mean'
-GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=35, numberOfGenerations=50, topNum=10, childrenPerGeneration=90, crossoverPoints=7, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
+FITNESS_METHOD='target-adjusted overlap'
+GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=43, numberOfGenerations=50, topNum=10, childrenPerGeneration=90, crossoverPoints=7, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
 
 
