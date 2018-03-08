@@ -136,11 +136,12 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     from random import choice
     # RESHUFFLE any bits that aren't legitimate options
     for param in parameterList:
-        bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
-        good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
-        current_bits = bit_dict[param]
-        if current_bits in bad_bits:
-            bit_dict[param] = choice(good_bits)
+        if type(eval(param))==dict:
+            bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
+            good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
+            current_bits = bit_dict[param]
+            if current_bits in bad_bits:
+                bit_dict[param] = choice(good_bits)
             # print("Reshuffling...")
 
 

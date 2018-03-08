@@ -331,15 +331,16 @@ for item in files:
 # Down genes only (performs MUCH better than up genes, which consistently return 0% of all kinase perturbation experiments in GEO)
 #copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt", "data/testgmt/Kinase_Perturbations_from_GEO_up.gmt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
-copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt")
+#copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
+# COMBINED dataset: GEO-KinasePert + L1000-DRH
+copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt")
 
 ## Run GA with Subset1
 FITNESS_METHOD='target-adjusted overlap'
 GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90, crossoverPoints=5, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
-
 
 # # Recover fitnessDictionary
 # def recoverFitnessDictionary(GAresults):
@@ -373,11 +374,13 @@ for item in files:
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 2
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
+#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET2.txt")
+# COMBINED dataset: GEO-KinasePert + L1000-DRH
+copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt")
 
 ## Run GA with Subset2
 # xxxxxxxx MAKE SURE YOU SHUT DOWN CHEA FIRST OR ELSE IT WON"T PRE-LOAD THE NEW TESTGMT!!!!!!!! xxxxxxxx
