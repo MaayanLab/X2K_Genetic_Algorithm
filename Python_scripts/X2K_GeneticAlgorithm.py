@@ -400,13 +400,13 @@ for generation in allFitnesses_Subset2:
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GA_results_GEO.wPPIlimiters_20gen.npy'
+GA_output_name = 'GA_results_L1000-DRH.wPPIlimiters_20gen-Subset1.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
-np.save(results_dir+GA_output_name, list([GAresults_Subset1, allFitnesses_Subset2, \
-                                          averageFitness_Subset2, peakFitness_Subset2, average_PPI_sizes_Subset2]))
+np.save(results_dir+GA_output_name, [GAresults_Subset1, allFitnesses_Subset2, \
+                                          averageFitness_Subset2, peakFitness_Subset2, average_PPI_sizes_Subset2])
 
 # Load
 import numpy as np

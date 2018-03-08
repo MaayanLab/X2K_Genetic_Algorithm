@@ -108,17 +108,6 @@ def tell_parameters(binaryString, verbose=True):
     # ############ KEA Databases ############
     # selectedKINASEdatabases = selectDatabases("KINASE", KINASE_databases)
 
-    # Reshuffle
-    shuffleList = ["TF_sort", "TF_species", "TF_background", "TF_topTFs", "KINASE_sort", "KINASE_background"]
-    from random import choice
-    # RESHUFFLE any bits that aren't legitimate options
-    for param in shuffleList:
-        bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
-        good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
-        current_bits = bit_dict[param]
-        if current_bits in bad_bits:
-            bit_dict[param] = choice(good_bits)
-            # print("Reshuffling...")
 
     # Tell X2K parameters
     TF_params = ';'.join( ["run", TF_sort[bit_dict["TF_sort"]], TF_species[bit_dict["TF_species"]], TF_databases[bit_dict["TF_databases"]], TF_background[bit_dict["TF_background"]], str(TF_topTFs[bit_dict["TF_topTFs"]]) ] )
@@ -275,26 +264,27 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     padRight=.6; padLeft=.2
     # Setup Fitness data
     Fitness_avg = data[['Fitness', 'Generation']].groupby('Generation').mean()
-    Fitness_peak = pd.DataFrame({'Fitness_peak': pd.Series(GAresults[3], list(range(1, len(pd.Series(GAresults[3])) + 1)))})
+    Fitness_peak = data[['Fitness', 'Generation']].groupby('Generation').max()
+    #Fitness_peak = pd.DataFrame({'Fitness_peak': pd.Series(GAresults[3], list(range(1, len(pd.Series(GAresults[3])) + 1)))})
     # Fitness plot
-    # Calculate stdv for average Fitness
+    # Calculate study for average Fitness
     yerr1 = np.std(GAresults[1], axis=1)
     x = Fitness_avg.index
     ax1 = plt.subplot2grid((nrows, 1), (0, 0), facecolor='whitesmoke', rowspan=fitness_rows)
     plt.gcf().set_facecolor('white')  # Change plot border background color
     #ax1.plot(Fitness_both.index, Fitness_both['Fitness'], color='blue', linestyle='-', marker='.', markersize=2)
     plt.errorbar(x, Fitness_avg['Fitness'], yerr=yerr1, color='blue', marker='o',markersize=5, capsize=2, label=" Average Fitness")
-    ax1.plot(x, Fitness_peak['Fitness_peak'], 'purple', linestyle='-', marker='^', markersize=5, label="Peak Fitness")
+    ax1.plot(x, Fitness_peak['Fitness'], 'purple', linestyle='-', marker='^', markersize=5, label="Peak Fitness")
     #ax1.axhline(y=chance, linestyle="--", color='r', label="Chance levels")
     #plt.title('Fitness Over Generations', fontsize=20)
     plt.xlabel('Generation', fontsize=12)
     plt.ylabel('Fitness', fontsize=12)
     plt.tick_params(axis='x', labelsize=12)
     plt.legend(loc='lower left', borderaxespad=2)
-    plt.ylim([0, max(data['Fitness'])+5])
+    #plt.ylim([0, max(data['Fitness'])+5])
     plt.subplots_adjust(right=padRight, left=padLeft)
     plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=1)  # bbox_to_anchor=(horizontal, vertical)
-    plt.xticks(np.arange(1, max(x) + 1, 10))
+    #plt.xticks(np.arange(1, max(x) + 1, 10))
 
 
     # Setup PPI size data:
@@ -309,7 +299,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     plt.tick_params(axis='x', labelbottom='off')
     plt.tick_params(axis='y', labelsize=7)
     #plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
-    plt.xticks(np.arange(1, max(x) + 1, 10))
+    #plt.xticks(np.arange(1, max(x) + 1, 10))
 
     # Parameter plots
     import seaborn as sns
@@ -332,7 +322,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
         plt.tick_params(axis='x', labelsize=12)
         plt.xlabel('Generation',fontsize=12)
         plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
-        plt.xticks(np.arange(1, max(x) + 1, 10))
+        #plt.xticks(np.arange(1, max(x) + 1, 10))
         plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
         if i != param_num-1: # Turn of xtick labels for all but bottom plot
             plt.tick_params(axis='x', labelbottom='off')
@@ -341,13 +331,11 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
 # parameterEvolutionPlot(GAresults)
 
 
-def ParameterBoxplots(GAresults, numRows=2, numCols=3, figSize=(10,6)):
+def ParameterViolinPlots(GAresults, numRows=2, numCols=5, figSize=(10,6)):
     import seaborn as sns
     import matplotlib.pyplot as plt
     df = parameterDF(GAresults)
-    tested_parameters = list(df.columns[4:][:-1])  # Test which parameters to run through ANOVA
-    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','PPI_databases','TF_background']]  # Remove specific parameter
-    tested_parameters.append('Fitness')
+    tested_parameters = [x for x in df.columns if x not in ['Average_PPI_size','Binary','KINASE_topKinases','KINASE_background','PPI_databases','TF_background']]  # Remove specific parameter
     data =  df[[col for col in df.columns if col in tested_parameters]] # Filter database by revelvant paramters
     plt.figure(figsize=figSize)
     for i,parameter in enumerate(reversed(data.columns[1:])):

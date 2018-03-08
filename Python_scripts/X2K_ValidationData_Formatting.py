@@ -101,7 +101,7 @@ split_testgmt(testPercent=80,\
               up_dn="dn", writeType="a")
 
 
-directory = "/Users/Schilder/Desktop/x2k/"
+directory = "/Users/Schilder/Desktop/X2K_Genetic_Algorithm/"
 
 # Mix up and down, then write to new file, then get top n lines (to limit computational load on GA)
 def reduced_split_testgmt(testPercent, input, output1, output2, writeType="w", up_dn="dn"):
@@ -149,3 +149,40 @@ reduced_split_testgmt(testPercent=80,\
               output1="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt",\
               output2="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt",\
               up_dn="dn", writeType="a")
+
+
+
+Dir = "X2K_Genetic_Algorithm/Validation/Perturbation_Data/" # Change to your directory
+
+# Combine datasets:
+with open(Dir+"LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt") as L1000_sub1,\
+        open(Dir+"LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.20per.txt") as L1000_sub2,\
+        open(Dir+"GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt") as GEO_sub1,\
+        open(Dir+"GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt") as GEO_sub2,\
+        open(Dir+"Combined/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt", "a") as sub1,\
+        open(Dir+"Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "a") as sub2:
+    for line in GEO_sub1:
+        lineSp = line.split("\t")
+        name = lineSp[0].split("_")
+        newname = "GEO-KinasePert_" + "_".join([ "-".join(name[1:]), "["+name[0]+"]"])
+        newLine = newname+"\t"+ "\t".join(lineSp[1:])
+        sub1.write(newLine)
+    for line in L1000_sub1:
+        lineSp = line.split("\t")
+        name = lineSp[0].split("_")
+        newName = "L1000-DrugRepurposingHub_" + "-".join( name[0:3]+[name[-1]]) + "_"+ name[3]
+        newLine = newName+"\t"+"\t".join(lineSp[1:])
+        sub1.write(newLine)
+        
+    for line in GEO_sub2:
+        lineSp = line.split("\t")
+        name = lineSp[0].split("_")
+        newname = "GEO-KinasePert" + "_".join(["-".join(name[1:]), "[" + name[0] + "]"])
+        newLine = newname + "\t" + "\t".join(lineSp[1:])
+        sub2.write(newLine)
+    for line in L1000_sub2:
+        lineSp = line.split("\t")
+        name = lineSp[0].split("_")
+        newName = "L1000-DrugRepurposingHub_" + "-".join(name[0:3] + [name[-1]]) + "_" + name[3]
+        newLine = newName+"\t"+"\t".join(lineSp[1:])
+        sub2.write(newLine)
