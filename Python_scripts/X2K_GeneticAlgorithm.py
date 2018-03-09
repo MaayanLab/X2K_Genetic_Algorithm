@@ -26,13 +26,13 @@
 # binary = '0010100101111001111011111110'
 
 from random import choice
-def createPopulation(popSize, parameterLength):
+def createPopulation(popSize, binaryStringLength):
     populationinit = []
     for i in range(popSize):
-        populationinit.append(''.join(choice(('0', '1')) for _ in range(parameterLength)) )
+        populationinit.append(''.join(choice(('0', '1')) for _ in range(binaryStringLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(5, 43)
+# population = createPopulation(10, 43)
 
 ###################################
 # 2. Calculate fitness
@@ -46,12 +46,12 @@ from Python_scripts.X2K_Pipeline import X2K_fitness
 fitnessDictionary = {}
 ppiSizeDictionary = {}
 def calculateFitness(population, genCount='', fitness_method='target-adjusted overlap'):
-    testFitness = False; indCount = 1
+    testFitness = False
     populationFitness=[]; avg_PPI_size=[]; newPopulation=[]
-    for i in range(len(population)):
+    for i,indiv in enumerate(population):
         print()
-        print("****** Generation "+str(genCount)+"  ::  Individual " + str(indCount) + " ******")
-        print(population[i])
+        print("****** Generation "+str(genCount)+"  ::  Individual " + str(i+1) + " ******")
+        print(indiv)
         # Delete .DS_Store files
         import os
         print("(Deleting .DS_Store files...)")
@@ -61,28 +61,28 @@ def calculateFitness(population, genCount='', fitness_method='target-adjusted ov
                     #print(os.path.join(root, file))
                     os.remove(os.path.join(root, file))
         # Calculate fitness (ONLY if it hasn't been previously calculated)
-        if population[i] not in fitnessDictionary:
+        if indiv not in fitnessDictionary:
             if testFitness==True:
-                new_fitness = sum(map(int, population[i])) # Test fitness
-                new_PPIsize=1
+                new_fitness = sum(map(int,indiv)) # Test fitness
+                new_PPIsize=1; newBinary=indiv
                 print('Fake fitness= '+str(new_fitness))
             else:
                 # REAL FITNESS
-                new_fitness, new_PPIsize, newBinary = X2K_fitness(population[i],fitness_method)
+                new_fitness, new_PPIsize, newBinary = X2K_fitness(indiv,fitness_method)
             populationFitness.append(new_fitness)
             avg_PPI_size.append(new_PPIsize)
             newPopulation.append(newBinary)
             # Store calculated values in dictionaries
-            fitnessDictionary[population[i]] = new_fitness
-            ppiSizeDictionary[population[i]] = new_PPIsize
+            fitnessDictionary[indiv] = new_fitness
+            ppiSizeDictionary[indiv] = new_PPIsize
             print("PPI Size = " +str(new_PPIsize))
         else:
-            populationFitness.append( fitnessDictionary[population[i]] )
-            avg_PPI_size.append(ppiSizeDictionary[population[i]])
-            print("{Using previously calculated fitness: " + str( fitnessDictionary[population[i]] ) + "}")
-            print("PPI Size = " + str(ppiSizeDictionary[population[i]]))
-        indCount += 1
-
+            populationFitness.append( fitnessDictionary[indiv] )
+            avg_PPI_size.append(ppiSizeDictionary[indiv])
+            newBinary=indiv
+            newPopulation.append(newBinary)
+            print("{Using previously calculated fitness: " + str( fitnessDictionary[indiv] ) + "}")
+            print("PPI Size = " + str(ppiSizeDictionary[indiv]))
     return populationFitness, avg_PPI_size, newPopulation
 # populationFitness, avg_PPI_size, newPopulation = calculateFitness(population)
 
@@ -95,14 +95,20 @@ def selectFittest(topNum, newPopulation, populationFitness, selectionMethod='Fit
     import numpy as np
     import pandas as pd
     if selectionMethod == 'Fitness-proportional':
-        df = pd.DataFrame(np.column_stack([newPopulation, populationFitness]), columns=["newPopulation", "populationFitness"])
+        # fitnessIndices = sorted(range(len(populationFitness)), key=lambda i: populationFitness[i])[-topNum:]
+        # fittest = list(np.array(newPopulation)[fitnessIndices])
+        # # Get Fitness of fittest
+        # fittestFitness = list(np.array(populationFitness)[fitnessIndices])
+
+        # DAtaframe method
+        df = pd.DataFrame({'newPopulation':newPopulation,'populationFitness':populationFitness})
         df['populationFitness'] = pd.to_numeric(df['populationFitness'],  errors='ignore')
         sortedDF = df.sort_values(by=['populationFitness'],ascending=False)
         fittest =  sortedDF.newPopulation.tolist()[0:topNum]
         fittestFitness = sortedDF.populationFitness.tolist()[0:topNum]
         print("Top fitnesses:  " + str(fittestFitness))
-    elif selectionMethod == 'Tournament':
-        import random; import operator
+    # elif selectionMethod == 'Tournament':
+    #     import random; import operator
         # dataDict = {z[0]:list(z[1:]) for z in zip( list(range(0,len(population)+1)), population, populationFitness,average_PPI_size)}
         # subsetSize = int( len(population) / topNum )
         # keyList = list(dataDict.keys())
@@ -118,7 +124,7 @@ def selectFittest(topNum, newPopulation, populationFitness, selectionMethod='Fit
         #     keyList = list( set(keyList) - set(keySubset))
     return fittest, fittestFitness
 
-# fittest, fittestFitness = selectFittest(10,population, fitness)
+# fittest, fittestFitness = selectFittest(10,newPopulation, populationFitness)
 
 
 
@@ -176,21 +182,21 @@ def mutateChild(child, mutationRate):
     #print(str(child))
     return mutant
 
-def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation, mutationRate):
+def createChildren(numberOfChildren, fittest, fittestFitness, breedingVariation, mutationRate):
     import numpy as np
     from random import random
     children = []
-    breedingChances = []
+    #breedingChances = []
     # Add noise to fitness score?
-    for b in range(len(Fittest)):
-        breedingChances.append(np.random.uniform(1 + breedingVariation, 1 - breedingVariation) * int(fittestFitness[b]))
-        topBreeders = [x for _, x in sorted(zip(breedingChances, Fittest), reverse=True)]
+    # for b in range(len(Fittest)):
+    #     breedingChances.append(np.random.uniform(1 + breedingVariation, 1 - breedingVariation) * int(fittestFitness[b]))
+    #     topBreeders = [x for _, x in sorted(zip(breedingChances, Fittest), reverse=True)]
     # Breed n times
     # 'Once you're in, you're in'. After selecting the top fittest individuals, it doesn't matter who is fitter within that group: everyone breeds with everyone else randomly
     for i in range(numberOfChildren):
-        ind1 = int(random()*len(topBreeders))
-        ind2 = int(random()*len(topBreeders))
-        child = createChild(topBreeders[ind1], topBreeders[ind2], 3)
+        ind1 = int(random()*len(fittest))
+        ind2 = int(random()*len(fittest))
+        child = createChild(fittest[ind1], fittest[ind2], 3)
         # MUTATE the children!
         child = mutateChild(child, mutationRate)
         children.append(child)
@@ -205,41 +211,38 @@ def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation,
 ###################################
 
 
-def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, breedingVariation, mutationRate, includeFittestParents, fitness_method='simple', fitnessDictionary={}):
+def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, breedingVariation, mutationRate, includeFittestParents, fitness_method, fitnessDictionary={}):
     print("Creating initial population...")
-    population = createPopulation(initialPopSize, parameterLength)
-    allPopulations = []
-    allFitnesses = []
-    averageFitness = []
-    peakFitness = []
-    average_PPI_sizes = []
+    population = createPopulation(initialPopSize, binaryStringLength)
+    allPopulations=[]; allFitnesses=[]; averageFitness=[]; peakFitness=[]; average_PPI_sizes=[]
     genCount = 0
     from random import random
     # Loop through n generationss
     for i in range(numberOfGenerations):
         genCount += 1
+
         print()
         print("+++++++ ANALYZING GENERATION: " + str(genCount) + " +++++++")
         # Calculate fitness
-        populationFitness, average_PPI_size, newPopulation = calculateFitness(population, genCount, fitness_method)
+        populationFitness, average_PPI_size, newPopulation = calculateFitness(population=population, genCount=genCount, fitness_method=fitness_method)
         allFitnesses.append(populationFitness) # Store all fitness
         average_PPI_sizes.append(average_PPI_size)
         allPopulations.append(newPopulation) # Store ****POST-SHUFFLED**** population!!!!
 
         # Select fittest
-        fittest, fittestFitness = selectFittest(topNum, newPopulation, populationFitness)
+        fittest, fittestFitness = selectFittest(topNum=topNum, newPopulation=newPopulation, populationFitness=populationFitness)
         # Create new population from the fittest individuals
-        population = createChildren(childrenPerGeneration, fittest, fittestFitness, breedingVariation, mutationRate)
+        population = createChildren(numberOfChildren=childrenPerGeneration, fittest=fittest, fittestFitness=fittestFitness, breedingVariation=breedingVariation, mutationRate=mutationRate)
         # Include fittest parents?
         if includeFittestParents > 0:
-            population.extend( fittest[-includeFittestParents:] )
+            population.extend( fittest[:includeFittestParents] )
 
         # Store average fitness
-        averageFitness.append( sum(populationFitness)*1.0 / len(populationFitness) ) #*1.0 turns numbers into floats instead of integers
+        averageFitness.append( sum(populationFitness)*1.0 / len(populationFitness) )
         # Store peak fitness
         peakFitness.append( max(populationFitness) )
         # Store GA settings in in a dictionary
-        GA_settings = {'initialPopSize':initialPopSize,'parameterLength':parameterLength,
+        GA_settings = {'initialPopSize':initialPopSize,'parameterLength':binaryStringLength,
                        'numberOfGenerations':numberOfGenerations, 'topNum':topNum,
                        'childrenPerGeneration':childrenPerGeneration, 'crossoverPoints':crossoverPoints,
                        'breedingVariation':breedingVariation, 'mutationRate':mutationRate,
@@ -248,7 +251,7 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
     return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary
 
 
-GAresults = GAfunction(initialPopSize=2, parameterLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
+GAresults = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=5, topNum=2, childrenPerGeneration=8, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
                        fitness_method='target-adjusted overlap')
 
 
@@ -321,7 +324,7 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1
 
 ## Run GA with Subset1
 FITNESS_METHOD='target-adjusted overlap'
-GAresults_Subset1 = GAfunction(initialPopSize=100, parameterLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90, crossoverPoints=5, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
+GAresults_Subset1 = GAfunction(initialPopSize=100, binaryStringLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90, crossoverPoints=5, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
                                fitness_method=FITNESS_METHOD)
 
 # # Recover fitnessDictionary

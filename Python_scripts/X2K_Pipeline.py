@@ -72,7 +72,9 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     # Flexibly create a dictionary for each bit value and its meaning depending on the particular set of variables
     parameterList = ["TF_sort", "TF_species","TF_databases","TF_background","TF_topTFs", "PPI_databases","PPI_pathLength","PPI_minLength","PPI_maxLength","PPI_finalSize","KINASE_sort","KINASE_databases","KINASE_background"]
     #def constructBitDict(parameterList, binaryString):
-    bit_dict={}
+    import pandas as pd
+    import numpy as np
+    bit_dict={}; ind_bit={}; keyDF=pd.DataFrame()
     prevBits=0
     for param in parameterList:
         realParam = eval(param)
@@ -85,6 +87,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
         firstBit = prevBits
         lastBit = firstBit + numBits
         bit_dict[param] = binaryString[firstBit:lastBit]
+        keyDF = keyDF.append(pd.DataFrame(np.column_stack([param, binaryString[firstBit:lastBit], str(firstBit)+":"+str(lastBit)]), columns=["Parameter", "binary", "indices"]) )
         prevBits = prevBits+numBits
         #return bitDict
     #bit_dict = constructBitDict(parameterList, binaryString)
@@ -142,8 +145,23 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             current_bits = bit_dict[param]
             if current_bits in bad_bits:
                 bit_dict[param] = choice(good_bits)
-            #print("Reshuffling...")
-    newBinary = "".join(bit_dict.values())
+
+
+    import itertools
+    from random import choice
+    for i,row in keyDF.iterrows():
+        param = row.Parameter
+        if type(eval(param)) == dict:
+            bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
+            good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
+        param = row.Parameter
+        if row.binary in bad_bits:
+            newChoice = choice(good_bits)
+            bit_dict[param] = newChoice
+            keyDF.iloc[i]['binary'] = newChoice
+
+    # Reconstruct corrected binary string
+    newBinary = "".join(keyDF.binary.tolist())
 
     ############################################################
     ##################### RUN X2K PIPELINE #####################
