@@ -32,7 +32,7 @@
 directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
 #directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
 
-# binaryString = '0110110100001010110101101101100000001011000'
+# binaryString = '1101010100100111011101011001001100001110110'
 
 # X2K Fitness Function for GA
 def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
@@ -74,7 +74,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     #def constructBitDict(parameterList, binaryString):
     import pandas as pd
     import numpy as np
-    bit_dict={}; ind_bit={}; keyDF=pd.DataFrame()
+    bit_dict={}; keyDF=pd.DataFrame()
     prevBits=0
     for param in parameterList:
         realParam = eval(param)
@@ -137,7 +137,9 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
 
     # Reshuffle
     from random import choice
-    # RESHUFFLE any bits that aren't legitimate options
+    #RESHUFFLE any bits that aren't legitimate options
+
+    newDict ={}
     for param in parameterList:
         if type(eval(param))==dict:
             bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
@@ -145,23 +147,34 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             current_bits = bit_dict[param]
             if current_bits in bad_bits:
                 bit_dict[param] = choice(good_bits)
+                newDict[param] = choice(good_bits)
+            else:
+                newDict[param] = choice(good_bits)
 
 
-    import itertools
-    from random import choice
+    newBinary=''
     for i,row in keyDF.iterrows():
         param = row.Parameter
         if type(eval(param)) == dict:
-            bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
-            good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
-        param = row.Parameter
-        if row.binary in bad_bits:
-            newChoice = choice(good_bits)
-            bit_dict[param] = newChoice
-            keyDF.iloc[i]['binary'] = newChoice
+            newBinary = newDict[param]+newBinary
+        else:
+            newBinary = row.binary + newBinary
+        #keyDF2.iloc[i]['binary'] = newDict[row.Parameter]
+
+    # import itertools
+    # from random import choice
+    # for i,row in keyDF.iterrows():
+    #     param = row.Parameter
+    #     if type(eval(param)) == dict:
+    #         bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
+    #         good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
+    #     if row.binary in bad_bits:
+    #         newChoice = choice(good_bits)
+    #         bit_dict[param] = newChoice
+    #         keyDF.iloc[i]['binary'] = newChoice
 
     # Reconstruct corrected binary string
-    newBinary = "".join(keyDF.binary.tolist())
+    #newBinary = "".join(keyDF.binary.tolist())
 
     ############################################################
     ##################### RUN X2K PIPELINE #####################

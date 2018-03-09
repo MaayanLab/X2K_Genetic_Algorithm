@@ -359,13 +359,13 @@ for item in files:
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 2
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
+copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET2.txt")
 # COMBINED dataset: GEO-KinasePert + L1000-DRH
-copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt")
+#copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt")
 
 ## Run GA with Subset2
 # xxxxxxxx MAKE SURE YOU SHUT DOWN CHEA FIRST OR ELSE IT WON"T PRE-LOAD THE NEW TESTGMT!!!!!!!! xxxxxxxx
@@ -388,7 +388,7 @@ for generation in allFitnesses_Subset2:
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GA_results_L1000-DRH.wPPIlimiters_20gen-Subset1.npy'
+GA_output_name = 'GA_results_L1000-DRH.wPPIlimiters_ShuffleCorrected.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):
