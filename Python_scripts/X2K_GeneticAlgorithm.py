@@ -32,7 +32,7 @@ def createPopulation(popSize, parameterLength):
         populationinit.append(''.join(choice(('0', '1')) for _ in range(parameterLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(10, 35)
+# population = createPopulation(2, 43)
 
 ###################################
 # 2. Calculate fitness
@@ -45,12 +45,9 @@ from Python_scripts.X2K_Pipeline import X2K_fitness
 
 fitnessDictionary = {}
 ppiSizeDictionary = {}
-def calculateFitness(population, genCount='', fitness_method='simple'):
-    testFitness = False
-    indCount = 1
-    fitness = []
-    avg_PPI_size = []
-
+def calculateFitness(population, genCount='', fitness_method='target-adjusted overlap'):
+    testFitness = False; indCount = 1
+    populationFitness=[]; avg_PPI_size=[]; newPopulation=[]
     for i in range(len(population)):
         print()
         print("****** Generation "+str(genCount)+"  ::  Individual " + str(indCount) + " ******")
@@ -70,39 +67,36 @@ def calculateFitness(population, genCount='', fitness_method='simple'):
                 new_PPIsize=1
                 print('Fake fitness= '+str(new_fitness))
             else:
-                X2K_output = X2K_fitness(population[i],fitness_method)
-                new_fitness = X2K_output[0]  # Real fitness
-                new_PPIsize = X2K_output[1]
-            fitness.append(new_fitness)
+                # REAL FITNESS
+                new_fitness, new_PPIsize, newBinary = X2K_fitness(population[i],fitness_method)
+            populationFitness.append(new_fitness)
             avg_PPI_size.append(new_PPIsize)
+            newPopulation.append(newBinary)
             # Store calculated values in dictionaries
             fitnessDictionary[population[i]] = new_fitness
             ppiSizeDictionary[population[i]] = new_PPIsize
             print("PPI Size = " +str(new_PPIsize))
         else:
-            fitness.append( fitnessDictionary[population[i]] )
+            populationFitness.append( fitnessDictionary[population[i]] )
             avg_PPI_size.append(ppiSizeDictionary[population[i]])
             print("{Using previously calculated fitness: " + str( fitnessDictionary[population[i]] ) + "}")
             print("PPI Size = " + str(ppiSizeDictionary[population[i]]))
         indCount += 1
 
-    return fitness, avg_PPI_size
-# popFitness = calculateFitness(population)
+    return populationFitness, avg_PPI_size, newPopulation
+# populationFitness, avg_PPI_size, newPopulation = calculateFitness(population)
 
 
 ###################################
 # 3. Subset only the top fittest individuals
 ###################################
 
-def selectFittest(topNum, population, genCount='', fitness_method='target-adjusted overlap', selectionMethod='Fitness-proportional'):
+def selectFittest(topNum, newPopulation, populationFitness, selectionMethod='Fitness-proportional'):
     import numpy as np
-    calcFitness_output = calculateFitness(population, genCount, fitness_method)
-    populationFitness = calcFitness_output[0]
-    average_PPI_size = calcFitness_output[1]
     if selectionMethod == 'Fitness-proportional':
         # Find indices of fittest
         fitnessIndices  = sorted(range(len(populationFitness)), key=lambda i: populationFitness[i])[-topNum:]
-        fittest = list(np.array(population)[fitnessIndices])
+        fittest = list(np.array(newPopulation)[fitnessIndices])
         # Get Fitness of fittest
         fittestFitness = list(np.array(populationFitness)[fitnessIndices])
         print("Top fitnesses:  " + str(fittestFitness))
@@ -121,14 +115,10 @@ def selectFittest(topNum, population, genCount='', fitness_method='target-adjust
         #     max(dictSubset.items(), key=operator.itemgetter(2))[0]
         #     # Remove keys from list to make sure they don't get repeated
         #     keyList = list( set(keyList) - set(keySubset))
-        #
-        #
-    return fittest, fittestFitness, populationFitness, average_PPI_size
+    return fittest, fittestFitness
 
-# selectFittest_output = selectFittest(10,population)
-# Fittest = selectFittest_output[0]
-# fittestFitness = selectFittest_output[1]
-# avgPPISize = selectFittest_output[2]
+# fittest, fittestFitness = selectFittest(10,population, fitness)
+
 
 
 ###################################
@@ -164,7 +154,7 @@ def createChild(individual1, individual2, crossoverPoints, crosspointLocations="
     child = "".join(child_fragments)
     return child
 
-# child = createChild( Fittest[0] , Fittest[1], 3)
+# child = createChild( fittest[0] , fittest[1], 3)
 
 
 def mutateChild(child, mutationRate):
@@ -185,7 +175,6 @@ def mutateChild(child, mutationRate):
     #print(str(child))
     return mutant
 
-import numpy as np
 def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation, mutationRate):
     import numpy as np
     from random import random
@@ -206,7 +195,7 @@ def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation,
         children.append(child)
     return children
 
-# createChildren(1000, Fittest, fittestFitness, 0, .01)
+# createChildren(1000, fittest, fittestFitness, 0, .01)
 
 
 
@@ -214,9 +203,6 @@ def createChildren(numberOfChildren, Fittest, fittestFitness, breedingVariation,
 # Genetic Algorithm
 ###################################
 
-# def createPopulation(initialPopSize, parameterLength):
-#     return GAresults_Subset1[0][0]
-# createPopulation(1, 2)
 
 def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, breedingVariation, mutationRate, includeFittestParents, fitness_method='simple', fitnessDictionary={}):
     print("Creating initial population...")
@@ -233,25 +219,20 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
         genCount += 1
         print()
         print("+++++++ ANALYZING GENERATION: " + str(genCount) + " +++++++")
+        # Calculate fitness
+        populationFitness, average_PPI_size, newPopulation = calculateFitness(population, genCount, fitness_method)
+        allFitnesses.append(populationFitness) # Store all fitness
+        average_PPI_sizes.append(average_PPI_size)
+        allPopulations.append(newPopulation) # Store ****POST-SHUFFLED**** population!!!!
 
-        # Stpre population
-        allPopulations.append(population)
-        # Calculate fitness & calculate fitness in one step
-        fitnessOutput = selectFittest(topNum, population, genCount, fitness_method)
-        fittest = fitnessOutput[0]
-        fittestFitness = fitnessOutput[1]
-        populationFitness = fitnessOutput[2]
-        average_PPI_sizes.append(fitnessOutput[3])
-
+        # Select fittest
+        fittest, fittestFitness = selectFittest(topNum, newPopulation, populationFitness)
         # Create new population from the fittest individuals
-        ## Replace population and repeat
         population = createChildren(childrenPerGeneration, fittest, fittestFitness, breedingVariation, mutationRate)
         # Include fittest parents?
         if includeFittestParents > 0:
             population.extend( fittest[-includeFittestParents:] )
 
-        # Store all fitnesses
-        allFitnesses.append(populationFitness)
         # Store average fitness
         averageFitness.append( sum(populationFitness)*1.0 / len(populationFitness) ) #*1.0 turns numbers into floats instead of integers
         # Store peak fitness
@@ -266,7 +247,7 @@ def GAfunction(initialPopSize, parameterLength, numberOfGenerations, topNum, chi
     return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary
 
 
-GAresults = GAfunction(initialPopSize=5, parameterLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
+GAresults = GAfunction(initialPopSize=2, parameterLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=5, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
                        fitness_method='target-adjusted overlap')
 
 

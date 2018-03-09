@@ -284,8 +284,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     #plt.ylim([0, max(data['Fitness'])+5])
     plt.subplots_adjust(right=padRight, left=padLeft)
     plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=1)  # bbox_to_anchor=(horizontal, vertical)
-    #plt.xticks(np.arange(1, max(x) + 1, 10))
-
+    plt.xticks(np.arange(0, max(x) + 1, 5))
 
     # Setup PPI size data:
     ## Calculate the population average PPI of individual average PPIs
@@ -299,7 +298,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
     plt.tick_params(axis='x', labelbottom='off')
     plt.tick_params(axis='y', labelsize=7)
     #plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
-    #plt.xticks(np.arange(1, max(x) + 1, 10))
+    plt.xticks(np.arange(0, max(x) + 1, 5))
 
     # Parameter plots
     import seaborn as sns
@@ -322,7 +321,7 @@ def parameterEvolutionPlot(GAresults, figsize=(24,8), chance=4.22):
         plt.tick_params(axis='x', labelsize=12)
         plt.xlabel('Generation',fontsize=12)
         plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
-        #plt.xticks(np.arange(1, max(x) + 1, 10))
+        plt.xticks(np.arange(0, max(x) + 1, 5))
         plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
         if i != param_num-1: # Turn of xtick labels for all but bottom plot
             plt.tick_params(axis='x', labelbottom='off')
@@ -391,10 +390,11 @@ def parameterStats(GAresults, writeExcel='No'):
     import pandas as pd
     import statsmodels.api as sm
     from statsmodels.formula.api import ols
+    import numpy as np
     data = parameterDF(GAresults)
-    frames = []
+    newTable = pd.DataFrame()
     tested_parameters = list(data.columns[4:][:-1]) # Test which parameters to run through ANOVA
-    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','TF_background','PPI_pathLength']]
+    tested_parameters = [x for x in tested_parameters if x not in ['KINASE_topKinases','KINASE_background','TF_background','PPI_pathLength','PPI_minLength','PPI_maxLength', 'PPI_finalSize']]
 
     for parameter in reversed(tested_parameters):
         # Rearrange data
@@ -407,40 +407,51 @@ def parameterStats(GAresults, writeExcel='No'):
         esq_sm = aov_table['sum_sq'][0] / (aov_table['sum_sq'][0] + aov_table['sum_sq'][1])
         p = aov_table['PR(>F)'][0]
         # Add P-val summary
-        if p > 0.05:
+        if p >= 0.05:
             aov_table['Sig'] = "non-sig"
-        if p <= 0.05:
+            P = "≥ 0.05"
+        elif p < 0.05:
             aov_table['Sig'] = '*'
-        if p < 0.01:
+            P = "< 0.05"
+        elif p < 0.01:
             aov_table['Sig'] = '**'
-        if p < 0.001:
+            P = "< 0.01"
+        elif p < 0.001:
             aov_table['Sig'] ='***'
-        if p < 0.0001:
+            P = "< 0.001"
+        elif p < 0.0001:
             aov_table['Sig'] = '****'
+            P = "< 0.0001"
+
         # mod.summary() # For full summary
-        ## Using full anova_lm output
-        frames.append(aov_table)
+        SS = int(round(float(aov_table.iloc[0].sum_sq), 0))
+        Sig= aov_table['Sig'][0]
+        F = int(round(float(aov_table.iloc[0].F),0))
+        df = int(aov_table.df[0])
+        newTable = newTable.append( pd.DataFrame(np.column_stack([parameter, SS, df, F, P, Sig]), columns=["X2K Parameter","SS","DF","F-value","P-value","Sig."]))
+
+        #newTable = newTable.append(aov_table.iloc[0])
         ## Using individual numbers
         #frames.append(pd.Series([parameter, esq_sm, p]))
     # Turn rownames into first col
     #.index.name = 'Parameter'
-    df.reset_index(inplace=True)
-    parameter_AOV_results.columns = ['Parameter','SS','df','F','p-value','Sig.']
-    parameter_AOV_results[['SS', 'F', 'p-value','Sig.']].apply(pd.to_numeric)
-    parameter_AOV_results = pd.concat(frames).round(3)
-    parameter_AOV_results = parameter_AOV_results.fillna("")
-    parameter_AOV_results['df'] = pd.to_parameter_AOV_results['df'].to_numeric()
-    print(parameter_AOV_results)
-    round(parameter_AOV_results)
+    # df.reset_index(inplace=True)
+    # parameter_AOV_results.columns = ['Parameter','SS','df','F','p-value','Sig.']
+    # parameter_AOV_results[['SS', 'F', 'p-value','Sig.']].apply(pd.to_numeric)
+    # parameter_AOV_results = pd.concat(frames).round(3)
+    # parameter_AOV_results = parameter_AOV_results.fillna("")
+    # parameter_AOV_results['df'] = pd.to_parameter_AOV_results['df'].to_numeric()
+    # print(parameter_AOV_results)
+    # round(parameter_AOV_results)
 
     if writeExcel != 'No':
         # Write AOV results to excel file
         print("Writing AOV results to excel file...")
         writer = pd.ExcelWriter(writeExcel)
-        parameter_AOV_results.to_excel(writer, 'Sheet1')
+        newTable.to_excel(writer, 'Sheet1')
         writer.save()
 
-    return parameter_AOV_results
+    return newTable
 
 # parameter_AOV_results = parameterStats(GAresults, True)
 
