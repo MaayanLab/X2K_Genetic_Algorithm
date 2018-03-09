@@ -32,7 +32,7 @@ def createPopulation(popSize, parameterLength):
         populationinit.append(''.join(choice(('0', '1')) for _ in range(parameterLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(2, 43)
+# population = createPopulation(5, 43)
 
 ###################################
 # 2. Calculate fitness
@@ -93,12 +93,13 @@ def calculateFitness(population, genCount='', fitness_method='target-adjusted ov
 
 def selectFittest(topNum, newPopulation, populationFitness, selectionMethod='Fitness-proportional'):
     import numpy as np
+    import pandas as pd
     if selectionMethod == 'Fitness-proportional':
-        # Find indices of fittest
-        fitnessIndices  = sorted(range(len(populationFitness)), key=lambda i: populationFitness[i])[-topNum:]
-        fittest = list(np.array(newPopulation)[fitnessIndices])
-        # Get Fitness of fittest
-        fittestFitness = list(np.array(populationFitness)[fitnessIndices])
+        df = pd.DataFrame(np.column_stack([newPopulation, populationFitness]), columns=["newPopulation", "populationFitness"])
+        df['populationFitness'] = pd.to_numeric(df['populationFitness'],  errors='ignore')
+        sortedDF = df.sort_values(by=['populationFitness'],ascending=False)
+        fittest =  sortedDF.newPopulation.tolist()[0:topNum]
+        fittestFitness = sortedDF.populationFitness.tolist()[0:topNum]
         print("Top fitnesses:  " + str(fittestFitness))
     elif selectionMethod == 'Tournament':
         import random; import operator
@@ -308,7 +309,7 @@ for item in files:
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 1
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
+copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
 # Down genes only (performs MUCH better than up genes, which consistently return 0% of all kinase perturbation experiments in GEO)
 #copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt", "data/testgmt/Kinase_Perturbations_from_GEO_up.gmt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
@@ -316,7 +317,7 @@ for item in files:
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
 # COMBINED dataset: GEO-KinasePert + L1000-DRH
-copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt")
+#copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt")
 
 ## Run GA with Subset1
 FITNESS_METHOD='target-adjusted overlap'
