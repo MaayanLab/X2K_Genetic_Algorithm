@@ -142,7 +142,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             current_bits = bit_dict[param]
             if current_bits in bad_bits:
                 bit_dict[param] = choice(good_bits)
-            print("Reshuffling...")
+            #print("Reshuffling...")
     newBinary = "".join(bit_dict.values())
 
     ############################################################
