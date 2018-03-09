@@ -162,6 +162,10 @@ def parameterDF(GAresults):
     for sublist in GAresults[5]:
         for item in sublist:
             average_PPI_size.append(item)
+    superParams=[]
+    for sublist in GAresults[7]:
+        for item in sublist:
+            superParams.append(item)
 
     # Compile parameters into dataframe
     ## Initialize lists
@@ -181,8 +185,9 @@ def parameterDF(GAresults):
     kinase_background = []
     kinase_databases = []
     kinase_topKinases = []
-    for individual in superPopulation:
-        params = tell_parameters(individual, verbose=False)
+    #for i in superPopulation:
+        #params = tell_parameters(individual, verbose=False)
+    for params in superParams:
         ## CHEA
         tf_params = params[0].split(";")
         tf_sort.append(tf_params[1])
