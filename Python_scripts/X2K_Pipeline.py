@@ -142,9 +142,8 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             current_bits = bit_dict[param]
             if current_bits in bad_bits:
                 bit_dict[param] = choice(good_bits)
-            # print("Reshuffling...")
-
-
+            print("Reshuffling...")
+    newBinary = "".join(bit_dict.values())
 
     ############################################################
     ##################### RUN X2K PIPELINE #####################
@@ -434,7 +433,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             fitness_score = sum(rboScores) / len(rboScores)
             print("Individual's fitness = " + str(fitness_score))
 
-    return fitness_score, average_PPI_size
+    return fitness_score, average_PPI_size, newBinary
 
 
 
