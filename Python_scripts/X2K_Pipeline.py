@@ -29,8 +29,10 @@
 # binary = makeString(100)
 
 
-directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
+#directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
 #directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
+directory='/Users/maayanlab/Desktop/X2K_Genetic_Algorithm/data/'
+
 
 # binaryString = '0110110100001010110101101101100000001011000'
 
