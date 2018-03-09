@@ -43,15 +43,14 @@ except NameError:
     pass
 from Python_scripts.X2K_Pipeline import X2K_fitness
 
-fitnessDictionary = {}
-ppiSizeDictionary = {}
+fitnessDictionary = {}; ppiSizeDictionary = {}; paramDict={}
 def calculateFitness(population, genCount='', fitness_method='target-adjusted overlap'):
     testFitness = False
-    populationFitness=[]; avg_PPI_size=[]; newPopulation=[]
+    populationFitness=[]; avg_PPI_size=[]; newPopulation=[]; x2kParameters=[]
     for i,indiv in enumerate(population):
         print()
         print("****** Generation "+str(genCount)+"  ::  Individual " + str(i+1) + " ******")
-        print(indiv)
+
         # Delete .DS_Store files
         import os
         print("(Deleting .DS_Store files...)")
@@ -68,10 +67,13 @@ def calculateFitness(population, genCount='', fitness_method='target-adjusted ov
                 print('Fake fitness= '+str(new_fitness))
             else:
                 # REAL FITNESS
-                new_fitness, new_PPIsize, newBinary = X2K_fitness(indiv,fitness_method)
+                new_fitness, new_PPIsize, newBinary, x2kParam = X2K_fitness(indiv,fitness_method)
             populationFitness.append(new_fitness)
             avg_PPI_size.append(new_PPIsize)
             newPopulation.append(newBinary)
+            x2kParameters.append(x2kParam)
+            printString = newBinary
+            #paramDict[newBinary]=x2kParam
             # Store calculated values in dictionaries
             fitnessDictionary[indiv] = new_fitness
             ppiSizeDictionary[indiv] = new_PPIsize
@@ -79,11 +81,15 @@ def calculateFitness(population, genCount='', fitness_method='target-adjusted ov
         else:
             populationFitness.append( fitnessDictionary[indiv] )
             avg_PPI_size.append(ppiSizeDictionary[indiv])
-            newBinary=indiv
-            newPopulation.append(newBinary)
+            newPopulation.append(indiv)
+            x2kParameters.append("NULL")
+            printString = indiv
+            #x2kParameters.append(paramDict[indiv])
             print("{Using previously calculated fitness: " + str( fitnessDictionary[indiv] ) + "}")
             print("PPI Size = " + str(ppiSizeDictionary[indiv]))
-    return populationFitness, avg_PPI_size, newPopulation
+        print("OldBinary: " + indiv)
+        print("NewBinary: "+printString)
+    return populationFitness, avg_PPI_size, newPopulation, x2kParameters
 # populationFitness, avg_PPI_size, newPopulation = calculateFitness(population)
 
 
@@ -214,7 +220,7 @@ def createChildren(numberOfChildren, fittest, fittestFitness, breedingVariation,
 def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, breedingVariation, mutationRate, includeFittestParents, fitness_method, fitnessDictionary={}):
     print("Creating initial population...")
     population = createPopulation(initialPopSize, binaryStringLength)
-    allPopulations=[]; allFitnesses=[]; averageFitness=[]; peakFitness=[]; average_PPI_sizes=[]
+    allPopulations=[]; allFitnesses=[]; averageFitness=[]; peakFitness=[]; average_PPI_sizes=[]; x2k_parameters=[]
     genCount = 0
     from random import random
     # Loop through n generationss
@@ -224,15 +230,16 @@ def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, 
         print()
         print("+++++++ ANALYZING GENERATION: " + str(genCount) + " +++++++")
         # Calculate fitness
-        populationFitness, average_PPI_size, newPopulation = calculateFitness(population=population, genCount=genCount, fitness_method=fitness_method)
+        populationFitness, average_PPI_size, newPopulation, x2kParameters = calculateFitness(population,genCount, fitness_method)
         allFitnesses.append(populationFitness) # Store all fitness
         average_PPI_sizes.append(average_PPI_size)
         allPopulations.append(newPopulation) # Store ****POST-SHUFFLED**** population!!!!
+        x2k_parameters.append(x2kParameters)
 
         # Select fittest
-        fittest, fittestFitness = selectFittest(topNum=topNum, newPopulation=newPopulation, populationFitness=populationFitness)
+        fittest, fittestFitness = selectFittest(topNum, newPopulation, populationFitness)
         # Create new population from the fittest individuals
-        population = createChildren(numberOfChildren=childrenPerGeneration, fittest=fittest, fittestFitness=fittestFitness, breedingVariation=breedingVariation, mutationRate=mutationRate)
+        population = createChildren(childrenPerGeneration,fittest, fittestFitness, breedingVariation, mutationRate)
         # Include fittest parents?
         if includeFittestParents > 0:
             population.extend( fittest[:includeFittestParents] )
@@ -248,7 +255,7 @@ def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, 
                        'breedingVariation':breedingVariation, 'mutationRate':mutationRate,
                        'includeFittestParents':includeFittestParents
                        }
-    return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary
+    return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary, x2k_parameters
 
 
 GAresults = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=5, topNum=2, childrenPerGeneration=8, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
@@ -261,7 +268,8 @@ averageFitness = GAresults[2] # Get averageFitness per generation
 peakFitness = GAresults[3] # Get the peakFitness per generation
 GA_settings = GAresults[4] # GA settings
 average_PPI_sizes = GAresults[5] # Average_PPI_sizes
-fitnessDictionary_revived = GAresults[6]
+fitnessDictionary_revived = GAresults[6] # FitnessDIct
+X2Kparams =  GAresults[7]
 
 import Python_scripts.Extra_X2K_functions as Ex
 Ex.tell_parameters( Ex.getFittestIndividual(GAresults) )
@@ -359,13 +367,13 @@ for item in files:
         os.remove(os.path.join(dir_name, item))
 ## Replace it with subset 2
 ### Dataset.A: GEO KINASE PERTURBATION DATA
-#copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
+copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
 ### Dataset.B: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
 ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET2.txt")
 # COMBINED dataset: GEO-KinasePert + L1000-DRH
-copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt")
+#copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt")
 
 ## Run GA with Subset2
 # xxxxxxxx MAKE SURE YOU SHUT DOWN CHEA FIRST OR ELSE IT WON"T PRE-LOAD THE NEW TESTGMT!!!!!!!! xxxxxxxx
@@ -388,7 +396,7 @@ for generation in allFitnesses_Subset2:
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GA_results_L1000-DRH.wPPIlimiters_20gen-Subset1.npy'
+GA_output_name = 'GA_results_L1000-DRH.wPPIlimiters_ShuffleCorrected.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):

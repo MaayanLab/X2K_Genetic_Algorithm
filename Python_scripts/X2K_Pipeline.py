@@ -34,7 +34,7 @@
 directory='/Users/maayanlab/Desktop/X2K_Genetic_Algorithm/data/'
 
 
-# binaryString = '0110110100001010110101101101100000001011000'
+# binaryString = '1101010100100111011101011001001100001110110'
 
 # X2K Fitness Function for GA
 def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
@@ -76,7 +76,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     #def constructBitDict(parameterList, binaryString):
     import pandas as pd
     import numpy as np
-    bit_dict={}; ind_bit={}; keyDF=pd.DataFrame()
+    bit_dict={}; keyDF=pd.DataFrame()
     prevBits=0
     for param in parameterList:
         realParam = eval(param)
@@ -112,34 +112,36 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
         # bit_dict["PPI_databases"] = PPI_string
         # *******************************************
         ### If no database selected, select at least one
-        dbs = []
-        binaryString = bit_dict[databaseType+"_databases"]
+        dbs = []; newDict ={}
+        dbString = bit_dict[databaseType+"_databases"]
         from random import randint
-        while sum(map(int, binaryString)) == 0:
-            binaryList = list(binaryString)
+        while sum(map(int, dbString)) == 0:
+            binaryList = list(dbString)
             binaryList[randint(0, (len(binaryList)) - 1)] = '1'
             # ******* Turn off specific databases ******* AGAIN just in case it picked one of these
             # ppi_list[2] = '0'  # Turn off BIOGRID PPI
             # ppi_list[8] = '0'  # Turn off KEA PPI
-            binaryString = "".join(binaryList)
-            bit_dict[databaseType+"_databases"] = binaryString
+            dbString = "".join(binaryList)
+            bit_dict[databaseType+"_databases"] = dbString
+        # Add to new dictionary
+        newDict[databaseType+"_databases"] = dbString
         ### Generate list of G2N databases
         for ind, bit in enumerate(bit_dict[databaseType+"_databases"]):
             if bit == "1":
                 dbs.append(fullDatabaseList[ind])
         selectedDatabases = ",".join(dbs)
-        return selectedDatabases
+        return selectedDatabases, newDict
 
     # ############ CHEA Databases ############
     # selectedTFdatabases = selectDatabases("TF", TF_databases)
     # ############ G2N Databases ############
-    selectedPPIdatabases = selectDatabases("PPI",PPI_databases)
+    selectedPPIdatabases, newDict = selectDatabases("PPI",PPI_databases)
     # ############ KEA Databases ############
     # selectedKINASEdatabases = selectDatabases("KINASE", KINASE_databases)
 
-    # Reshuffle
+    #RESHUFFLE any bits that aren't legitimate options
     from random import choice
-    # RESHUFFLE any bits that aren't legitimate options
+
     for param in parameterList:
         if type(eval(param))==dict:
             bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
@@ -147,23 +149,34 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             current_bits = bit_dict[param]
             if current_bits in bad_bits:
                 bit_dict[param] = choice(good_bits)
-
-
-    import itertools
-    from random import choice
-    for i,row in keyDF.iterrows():
-        param = row.Parameter
-        if type(eval(param)) == dict:
-            bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
-            good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
-        param = row.Parameter
-        if row.binary in bad_bits:
-            newChoice = choice(good_bits)
-            bit_dict[param] = newChoice
-            keyDF.iloc[i]['binary'] = newChoice
+                newDict[param] = choice(good_bits)
+            else:
+                newDict[param] = bit_dict[param]
 
     # Reconstruct corrected binary string
-    newBinary = "".join(keyDF.binary.tolist())
+    newBinary=''
+    for i,row in keyDF.iterrows():
+        param = row.Parameter
+        newBinary = newDict[param] + newBinary
+        #print(param)
+
+
+        #keyDF2.iloc[i]['binary'] = newDict[row.Parameter]
+
+    # import itertools
+    # from random import choice
+    # for i,row in keyDF.iterrows():
+    #     param = row.Parameter
+    #     if type(eval(param)) == dict:
+    #         bad_bits = [k for k, v in eval(param).items() if v == "RESHUFFLE"]
+    #         good_bits = [k for k, v in eval(param).items() if v != "RESHUFFLE"]
+    #     if row.binary in bad_bits:
+    #         newChoice = choice(good_bits)
+    #         bit_dict[param] = newChoice
+    #         keyDF.iloc[i]['binary'] = newChoice
+
+    # Reconstruct corrected binary string
+    #newBinary = "".join(keyDF.binary.tolist())
 
     ############################################################
     ##################### RUN X2K PIPELINE #####################
@@ -184,7 +197,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     allData = ""
 
     print("Running ChEA...")
-    chea_parameters = ';'.join( ["run", TF_sort[bit_dict["TF_sort"]], TF_species[bit_dict["TF_species"]], TF_databases[bit_dict["TF_databases"]], TF_background[bit_dict["TF_background"]], str(TF_topTFs[bit_dict["TF_topTFs"]]) ] ) #"run,oddsratio,both,chea,humanarchs4,20")
+    chea_parameters = ';'.join( ["run", TF_sort[newDict["TF_sort"]], TF_species[newDict["TF_species"]], TF_databases[newDict["TF_databases"]], TF_background[newDict["TF_background"]], str(TF_topTFs[newDict["TF_topTFs"]]) ] ) #"run,oddsratio,both,chea,humanarchs4,20")
     print("CHEA Parameters:   "+chea_parameters)
     sock.sendall(bytes(chea_parameters+"\n", 'utf-8'))
 
@@ -212,7 +225,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     allData.replace("messageComplete\n", "")
 
     print("Running G2N...")
-    g2n_string = ';'.join(["run", selectedPPIdatabases, str(PPI_pathLength[bit_dict["PPI_pathLength"]]), str(PPI_minLength[bit_dict["PPI_minLength"]]), str(PPI_maxLength[bit_dict["PPI_maxLength"]]), str(PPI_finalSize[bit_dict["PPI_finalSize"]]) ])
+    g2n_string = ';'.join(["run", selectedPPIdatabases, str(PPI_pathLength[newDict["PPI_pathLength"]]), str(PPI_minLength[newDict["PPI_minLength"]]), str(PPI_maxLength[newDict["PPI_maxLength"]]), str(PPI_finalSize[newDict["PPI_finalSize"]]) ])
     print("G2N Parameters:   "+g2n_string)
     g2n_parameters = g2n_string + "\n"+allData+"messageComplete\n"
     sock2.sendall(bytes(g2n_parameters+"\n", 'utf-8'))
@@ -257,7 +270,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
     allData3 = ""
 
     print("Running KEA...")
-    kea_string = ';'.join(["run", KINASE_sort[bit_dict["KINASE_sort"]], KINASE_background[bit_dict["KINASE_background"]], KINASE_databases[bit_dict["KINASE_databases"]], str(KINASE_topKinases)  ])
+    kea_string = ';'.join(["run", KINASE_sort[newDict["KINASE_sort"]], KINASE_background[newDict["KINASE_background"]], KINASE_databases[newDict["KINASE_databases"]], str(KINASE_topKinases)  ])
     print("KEA Parameters:   "+kea_string)
     kea_parameters = kea_string + "\n"+allData2+"messageComplete\n"
     kea_parameters.replace("messageComplete\n", "")
@@ -453,7 +466,7 @@ def X2K_fitness(binaryString, fitness_method='target-adjusted overlap'):
             fitness_score = sum(rboScores) / len(rboScores)
             print("Individual's fitness = " + str(fitness_score))
 
-    return fitness_score, average_PPI_size, newBinary
+    return fitness_score, average_PPI_size, newBinary, [chea_parameters, g2n_string, kea_string ]
 
 
 
