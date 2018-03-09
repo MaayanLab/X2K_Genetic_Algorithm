@@ -185,9 +185,9 @@ def parameterDF(GAresults):
     kinase_background = []
     kinase_databases = []
     kinase_topKinases = []
-    #for i in superPopulation:
-        #params = tell_parameters(individual, verbose=False)
-    for params in superParams:
+    for individual in superPopulation:
+        params = tell_parameters(individual, verbose=False)
+    #for params in superParams:
         ## CHEA
         tf_params = params[0].split(";")
         tf_sort.append(tf_params[1])
