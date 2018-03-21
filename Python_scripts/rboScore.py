@@ -7,11 +7,12 @@
 
 
 # getRBOScore(target, predicted)
-# line =  'GSK3B_KNOCKDOWN_206_GDS4305_DN,MAPK1,CSNK2A1,RPS6KA4,RPS6KA1,MAPK14,CDK2,TAF1,MAPK8,MAPK3,GSK3B,MAP2K1,CSNK2A2,CDK1,MAPKAPK2,MAP3K8,MAPK9,PRKDC,HIPK2,RPS6KA5,RPS6KA2\n',
-# line = 'MELK_KNOCKDOWN_150_GSE32873_DN,TBK1,MAP3K7,MELK,IKBKE,MAPK1,AKT1,BMPR1B,TGFBR1,MAPK8,MAP3K14,HIPK2,RIPK3,IKBKB,MAPK3,CHUK,PLK1,HIPK3,CAMK4,ACVR1B,MAPKAPK2'
-def getRBOScore(predicted, target):
+# line =  'GSK3B_KNOCKDOWN_206_GDS4305_DN,MAPK1,CSNK2A1,RPS6KA4,RPS6KA1,MAPK14,CDK2,TAF1,MAPK8,MAPK3,GSK3B,MAP2K1,CSNK2A2,CDK1,MAPKAPK2,MAP3K8,MAPK9,PRKDC,HIPK2,RPS6KA5,RPS6KA2\n'
+# line = 'MAPK1_KNOCKDOWN_145_GSE31912_DN,MAPK14,MAPK1,MAPK3,CDK1,GSK3B,CDK2,MAPK9,RIPK2,PBK,PLK4,NLK,TSSK3,TRIM33,PRP4'
+# target, predicted = parseTargetsPredicted(line, dataType)
+
+def getRBOScore(predicted, target, staticD=False):
     # RBO score
-    # From:
     def rbo(l1, l2, p=0.98):
         """
             Calculates Ranked Biased Overlap (RBO) score.
@@ -56,35 +57,39 @@ def getRBOScore(predicted, target):
         return rbo_ext
 
     # Get a P that scales to the length of the predicted list
-    import numpy as np
     def getP(d):
-
+        import numpy as np
         w = 0.0
         p = 0.999
-        print("Starting at W="+str(w)+"; P="+str(p))
-        w_list=[]; p_list=[]
-        while (w < 0.90 and p>0.01): # Adjust max w to change the % of weight that's captured in up until the depth d
+        #print("Starting at W=" + str(w) + "; P=" + str(p))
+        #print("Evaluating P= "+str(p))
+        while w < 0.90: # Adjust max w to change the % of weight that's captured in up until the depth d
+            #print("Calculating new sumX...")
             sumX = 0
             for i in np.arange(1, d):
                 sumX += ((p ** i) / i)
+            #print("     sumX= "+str(sumX))
+            #print("Calculating new w...")
             w = 1 - (p ** (d - 1)) + ((1 - p) / p) * d * (np.log(1 / (1 - p)) - sumX)
-            p -= 0.01
-            w_list.append(w)
-            p_list.append(p)
-            # if w!=w_list[-1]:
-            #     break
-        return (round(p_list[-2], 2))
+            #print("     w= "+str(w))
+            p -= 0.001
+        return (round(p, 2))
 
     # Iterate over all possible combinations of target list and take the one that gives the best RBO score
     import itertools
     lst=[]
     # Since all permutations will have the same length, can just calculate optimized P beforehand
-    P = getP(len(predicted))
+    if staticD==False:
+        P = getP(d=len(predicted)) # Dynamic
+    else:
+        P = getP(d=20) # Static
     # Repeat rbo for all permutations of the target list, and then simply take the highest scoring one
     ## ...because the target list is unranked, and therefore the order doesn't matter.
     for itterTarget in list(itertools.permutations(target)):
-        print("test 1")
+        #print("** itterTarget= " + str(itterTarget))
         lst.append( rbo(predicted, list(itterTarget), P) )
-        print("test 2")
-    print("P="+str(P)+";  RBOscore="+str(max(lst)))
-    return max(lst)
+        #print("itterTarget: after append")
+    rboScore = max(lst)
+    #print("P="+str(P)+";  RBOscore="+str(rboScore))
+
+    return rboScore

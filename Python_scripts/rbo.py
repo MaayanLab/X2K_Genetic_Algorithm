@@ -14,6 +14,7 @@ because of this are highlighted with comments.
 
 """
 
+
 import math
 from bisect import bisect_left
 
@@ -33,9 +34,7 @@ def set_at_depth(lst, depth):
 
 
 def raw_overlap(list1, list2, depth):
-    """Overlap as defined in the article.
-
-    """
+    """Overlap as defined in the article."""
     set1, set2 = set_at_depth(list1, depth), set_at_depth(list2, depth)
     return len(set1.intersection(set2)), len(set1), len(set2)
 
@@ -256,3 +255,5 @@ def rbo_dict(dict1, dict2, p):
 if __name__ in ("__main__", "__console__"):
     import doctest
     doctest.testmod()
+
+
