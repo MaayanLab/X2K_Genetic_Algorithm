@@ -1,30 +1,10 @@
 #############################################################################################
-#############################################################################################
 ##################### X2K:Parameter Optimization Via Genetic Algorithm #####################
 #############################################################################################
-#############################################################################################
-
-###################################
-# 0. Initialize X2K
-###################################
-# import os
-# # Initialize X2K steps
-# os.system('java -jar x2k_CHEA.jar')
-# os.system('java -jar x2k_G2N.jar')
-# os.system('java -jar x2k_KEA.jar')
-# # Kill processes
-# os.system('pkill 5000')
-# os.system('pkill 5001')
-# os.system('pkill 5002')
-#
-
-
 
 ###################################
 # 1. Create initial population
 ###################################
-# binary = '0010100101111001111011111110'
-
 from random import choice
 def createPopulation(popSize, binaryStringLength):
     populationinit = []
@@ -32,7 +12,7 @@ def createPopulation(popSize, binaryStringLength):
         populationinit.append(''.join(choice(('0', '1')) for _ in range(binaryStringLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(10, 43)
+# population = createPopulation(5, 43)
 
 ###################################
 # 2. Calculate fitness
@@ -43,94 +23,71 @@ except NameError:
     pass
 from Python_scripts.X2K_Pipeline import X2K_fitness
 
-fitnessDictionary = {}; ppiSizeDictionary = {}; paramDict={}
-def calculateFitness(population, genCount='', fitness_method='target-adjusted overlap'):
-    testFitness = False
-    populationFitness=[]; avg_PPI_size=[]; newPopulation=[]; x2kParameters=[]
+def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdjustedOverlap', testFitness=False):
+    import pandas as pd; import numpy as np
+    fitDF=pd.DataFrame(columns=allDataDF.columns)
     for i,indiv in enumerate(population):
         print()
         print("****** Generation "+str(genCount)+"  ::  Individual " + str(i+1) + " ******")
-
         # Delete .DS_Store files
         import os
-        print("(Deleting .DS_Store files...)")
         for root, dirs, files in os.walk(os.getcwd()):
             for file in files:
                 if file.endswith(".DS_Store"):
-                    #print(os.path.join(root, file))
                     os.remove(os.path.join(root, file))
-        # Calculate fitness (ONLY if it hasn't been previously calculated)
-        if indiv not in fitnessDictionary:
-            if testFitness==True:
-                new_fitness = sum(map(int,indiv)) # Test fitness
-                new_PPIsize=1; newBinary=indiv
-                print('Fake fitness= '+str(new_fitness))
-            else:
-                # REAL FITNESS
-                new_fitness, new_PPIsize, newBinary, x2kParam = X2K_fitness(indiv,fitness_method)
-            populationFitness.append(new_fitness)
-            avg_PPI_size.append(new_PPIsize)
-            newPopulation.append(newBinary)
-            x2kParameters.append(x2kParam)
-            printString = newBinary
-            #paramDict[newBinary]=x2kParam
-            # Store calculated values in dictionaries
-            fitnessDictionary[indiv] = new_fitness
-            ppiSizeDictionary[indiv] = new_PPIsize
-            print("PPI Size = " +str(new_PPIsize))
+        if testFitness == True:
+            new_fitness = sum(map(int, indiv))  # Test fitness
+            print('Fake fitness= ' + str(new_fitness))
+            newBinary = indiv
+            fitDF = fitDF.append(pd.DataFrame(np.column_stack([genCount,indiv,newBinary,fitnessMethod,new_fitness,"NA","NA","NA","NA","NA"]), columns=allDataDF.columns))
         else:
-            populationFitness.append( fitnessDictionary[indiv] )
-            avg_PPI_size.append(ppiSizeDictionary[indiv])
-            newPopulation.append(indiv)
-            x2kParameters.append("NULL")
-            printString = indiv
-            #x2kParameters.append(paramDict[indiv])
-            print("{Using previously calculated fitness: " + str( fitnessDictionary[indiv] ) + "}")
-            print("PPI Size = " + str(ppiSizeDictionary[indiv]))
+            # Calculate fitness (ONLY if it hasn't been previously calculated)
+            if indiv not in allDataDF.newBinary.tolist():
+                new_fitness, PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness = X2K_fitness(indiv,fitnessMethod)
+                fitDF = fitDF.append( pd.DataFrame(np.column_stack([genCount, indiv, newBinary,fitnessMethod, new_fitness, baselineFitness, \
+                                                                    PPI_size, chea_parameters, g2n_string, kea_string]), columns=allDataDF.columns) )
+                print("PPI Size = " +str(PPI_size))
+            else:
+                newBinary = indiv
+                same = allDataDF[allDataDF.newBinary==indiv].iloc[0,:].copy() # Get the first individual that matches this one
+                same['Generation'] = genCount
+                fitDF = fitDF.append(same)
+                print("[Using previously calculated fitness = "+ str(same.Fitness)+"]")
+                print("[BaselineFitness = "+str(same.baselineFitness)+"]")
+                print("[PPI size = "+str(same.PPI_size)+"]")
         print("OldBinary: " + indiv)
-        print("NewBinary: "+printString)
-    return populationFitness, avg_PPI_size, newPopulation, x2kParameters
-# populationFitness, avg_PPI_size, newPopulation = calculateFitness(population)
+        print("NewBinary: "+ newBinary)
+    # Convert cols to numeric
+    fitDF['Fitness'] = pd.to_numeric(fitDF['Fitness'], errors='ignore')
+    fitDF['baselineFitness'] = pd.to_numeric(fitDF['baselineFitness'], errors='ignore')
+    fitDF['PPI_size'] = pd.to_numeric(fitDF['PPI_size'], errors='ignore')
+    return fitDF
+# fitDF, allDataDF = calculateFitness(population)
+
 
 
 ###################################
 # 3. Subset only the top fittest individuals
 ###################################
 
-def selectFittest(topNum, newPopulation, populationFitness, selectionMethod='Fitness-proportional'):
-    import numpy as np
+def selectFittest(topNum, fitDF, selectionMethod='Fitness-proportional'):
     import pandas as pd
     if selectionMethod == 'Fitness-proportional':
-        # fitnessIndices = sorted(range(len(populationFitness)), key=lambda i: populationFitness[i])[-topNum:]
-        # fittest = list(np.array(newPopulation)[fitnessIndices])
-        # # Get Fitness of fittest
-        # fittestFitness = list(np.array(populationFitness)[fitnessIndices])
-
-        # DAtaframe method
-        df = pd.DataFrame({'newPopulation':newPopulation,'populationFitness':populationFitness})
-        df['populationFitness'] = pd.to_numeric(df['populationFitness'],  errors='ignore')
-        sortedDF = df.sort_values(by=['populationFitness'],ascending=False)
-        fittest =  sortedDF.newPopulation.tolist()[0:topNum]
-        fittestFitness = sortedDF.populationFitness.tolist()[0:topNum]
-        print("Top fitnesses:  " + str(fittestFitness))
-    # elif selectionMethod == 'Tournament':
-    #     import random; import operator
-        # dataDict = {z[0]:list(z[1:]) for z in zip( list(range(0,len(population)+1)), population, populationFitness,average_PPI_size)}
-        # subsetSize = int( len(population) / topNum )
-        # keyList = list(dataDict.keys())
-        # # Break dict into equal subsets, and get individual with top fitness from each subset
-        # for num in topNum:
-        #     random.shuffle(keyList)
-        #     keySubset = keyList[:subsetSize]
-        #     dictSubset = {k: dataDict[k] for k in (keySubset)}
-        #     # Get top val
-        #     #dicts
-        #     max(dictSubset.items(), key=operator.itemgetter(2))[0]
-        #     # Remove keys from list to make sure they don't get repeated
-        #     keyList = list( set(keyList) - set(keySubset))
-    return fittest, fittestFitness
-
-# fittest, fittestFitness = selectFittest(10,newPopulation, populationFitness)
+        fittestDF = fitDF.sort_values(by=['Fitness'],ascending=False).iloc[:topNum,:]
+        print("Top fitnesses:  " + str(fittestDF["Fitness"].values))
+    # Tournament selection (less stringent)
+    ## Split the population into equal subgroups, and then select the fittest individual from each group
+    elif selectionMethod == 'Tournament':
+        fittestDF=pd.DataFrame()
+        # You
+        if fitDF.shape[0] % topNum!=0:
+            print("Tournament selection requires that populationSize/topNum and childrenPerGeneration/topNum are both whole numbers.")
+        subsetSize = int( fitDF.shape[0] / topNum )
+        for t in range(topNum):
+            subDF = fitDF.sample(n=subsetSize, replace=False)
+            fittestDF = fittestDF.append( subDF.sort_values(by=['Fitness'], ascending=False).iloc[0,:] )
+    return fittestDF
+# fittestDF = selectFittest(5, fitDF, selectionMethod="Tournament")
 
 
 
@@ -140,33 +97,46 @@ def selectFittest(topNum, newPopulation, populationFitness, selectionMethod='Fit
 ###################################
 # 5. Introduce random mutations
 ###################################
-# individual1=population[0]
-# individual2=population[6]
+# individual1=  population[0]
+# individual2=  population[1]
 # crossoverPoints=8
-def createChild(individual1, individual2, crossoverPoints, crosspointLocations="evenly distributed"):
-    from random import sample, random
-    child_fragments = []
-    if crosspointLocations=="evenly distributed":
+def createChild(individual1, individual2, crossoverPoints, crossoverLocations="evenlyDistributed"):
+    if crossoverLocations=="evenlyDistributed":
         chunkSize = int(len(individual1) / (crossoverPoints+1))
         ind1Split = [individual1[i:i + chunkSize] for i in range(0, len(individual1), chunkSize)]
         ind2Split = [individual2[i:i + chunkSize] for i in range(0, len(individual2), chunkSize)]
-    else:
-        ind1Split=[]; ind2Split=[]
+    elif crossoverLocations=='random':
+        from random import sample
         cutpoints = sorted(sample(range(1, len(individual1)-1), crossoverPoints)) # randomly generate n non-overlapping numbers
-        ind1Split = [individual1[num:cutpoints[i+1]] for i,num in enumerate(cutpoints)]
-        ind2Split =[]
-        for i,num in enumerate(cutpoints):
-            print(individual1[num:cutpoints[i+1]])
-            ind1Split.append(individual1[num:cutpoints[i+1]])
-
+        def splitParent(parent, cutpoints):
+            indSplit=[]
+            for i,num in enumerate(cutpoints):
+                #print("**Cutpoint index= "+str(i))
+                if i == 0: # If it's the first cutpoint, take all values up to the first index+1
+                    start = 0
+                    end = num
+                else:
+                    start = cutpoints[i-1]
+                    end = num
+                segment = parent[start:end]
+                #print("Cutpoint= " + str(start) + " : " + str(end))
+                #print("------- "+segment+" -------")
+                indSplit.append(segment)
+            # Add the very last segment
+            indSplit.append(parent[cutpoints[-1]:])
+            return indSplit
+        ind1Split = splitParent(individual1, cutpoints)
+        ind2Split = splitParent(individual2, cutpoints)
+    # Put together the new child
+    from random import random
+    childFragments=[]
     for fragment in range(len(ind1Split)):
-        if int(100 * random()) < 50: # Just randomly picks from ParentA or ParentB for each individual parameter
-            child_fragments.append(ind1Split[fragment])
+        if int(100*random()) < 50: # Just randomly picks from ParentA or ParentB for each individual parameter
+            childFragments.append(ind1Split[fragment])
         else:
-            child_fragments.append(ind2Split[fragment])
-    child = "".join(child_fragments)
+            childFragments.append(ind2Split[fragment])
+    child = "".join(childFragments)
     return child
-
 # child = createChild( fittest[0] , fittest[1], 3)
 
 
@@ -177,21 +147,15 @@ def mutateChild(child, mutationRate):
         rando = random()
         if rando <= mutationRate and val == '1':
             mutant = str(str(mutant) + '0')
-        #print("1 ==> 0")
         elif rando <= mutationRate and val == '0':
             mutant = str(str(mutant) + '1')
-        #print("0 ==> 1")
         else:
             mutant = str(str(mutant) + str(val))
-        #print("NO MUTATION")
-    #print(str(mutant))
-    #print(str(child))
     return mutant
 
-def createChildren(numberOfChildren, fittest, fittestFitness, breedingVariation, mutationRate):
-    import numpy as np
+def createChildren(numberOfChildren, fittestDF, mutationRate, breedingVariation, crossoverLocations):
     from random import random
-    children = []
+    fittest = fittestDF.newBinary.tolist()
     #breedingChances = []
     # Add noise to fitness score?
     # for b in range(len(Fittest)):
@@ -199,16 +163,16 @@ def createChildren(numberOfChildren, fittest, fittestFitness, breedingVariation,
     #     topBreeders = [x for _, x in sorted(zip(breedingChances, Fittest), reverse=True)]
     # Breed n times
     # 'Once you're in, you're in'. After selecting the top fittest individuals, it doesn't matter who is fitter within that group: everyone breeds with everyone else randomly
+    children = []
     for i in range(numberOfChildren):
         ind1 = int(random()*len(fittest))
         ind2 = int(random()*len(fittest))
-        child = createChild(fittest[ind1], fittest[ind2], 3)
+        child = createChild(fittest[ind1], fittest[ind2], 3, crossoverLocations)
         # MUTATE the children!
         child = mutateChild(child, mutationRate)
         children.append(child)
     return children
-
-# createChildren(1000, fittest, fittestFitness, 0, .01)
+# createChildren(100, fitDF, .01)
 
 
 
@@ -217,95 +181,41 @@ def createChildren(numberOfChildren, fittest, fittestFitness, breedingVariation,
 ###################################
 
 
-def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, breedingVariation, mutationRate, includeFittestParents, fitness_method, fitnessDictionary={}):
+def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, crossoverLocations, breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod):
+    # Store GA settings in in a dictionary
+    GAsettings = dict(zip(
+        ['initialPopSize', 'binaryStringLength', 'numberOfGenerations', 'topNum', 'childrenPerGeneration',\
+         'crossoverPoints', 'crossoverLocations','breedingVariation', 'mutationRate', 'includeFittestParents', 'fitnessMethod','selectionMethod'], \
+        [initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints,crossoverLocations,\
+         breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod]))
+    import pandas as pd
+    allDataDF = pd.DataFrame(columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
+                                      'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters'])
     print("Creating initial population...")
     population = createPopulation(initialPopSize, binaryStringLength)
-    allPopulations=[]; allFitnesses=[]; averageFitness=[]; peakFitness=[]; average_PPI_sizes=[]; x2k_parameters=[]
-    genCount = 0
-    from random import random
-    # Loop through n generationss
+    genCount = 1
+    import pandas as pd
+    # Loop through n generations:
     for i in range(numberOfGenerations):
-        genCount += 1
-
         print()
         print("+++++++ ANALYZING GENERATION: " + str(genCount) + " +++++++")
         # Calculate fitness
-        populationFitness, average_PPI_size, newPopulation, x2kParameters = calculateFitness(population,genCount, fitness_method)
-        allFitnesses.append(populationFitness) # Store all fitness
-        average_PPI_sizes.append(average_PPI_size)
-        allPopulations.append(newPopulation) # Store ****POST-SHUFFLED**** population!!!!
-        x2k_parameters.append(x2kParameters)
-
+        fitDF = calculateFitness(population, allDataDF, genCount, fitnessMethod)
+        allDataDF = allDataDF.append(fitDF)
+        #allDataDF = allDataDF.append(allDataDF)
         # Select fittest
-        fittest, fittestFitness = selectFittest(topNum, newPopulation, populationFitness)
+        fittestDF = selectFittest(topNum, fitDF, selectionMethod)
         # Create new population from the fittest individuals
-        population = createChildren(childrenPerGeneration,fittest, fittestFitness, breedingVariation, mutationRate)
+        population = createChildren(childrenPerGeneration, fittestDF, mutationRate, breedingVariation, crossoverLocations)
         # Include fittest parents?
         if includeFittestParents > 0:
-            population.extend( fittest[:includeFittestParents] )
+            population.extend( fittestDF.newBinary.values[:includeFittestParents].tolist() )
+        genCount += 1
+    return allDataDF, GAsettings
 
-        # Store average fitness
-        averageFitness.append( sum(populationFitness)*1.0 / len(populationFitness) )
-        # Store peak fitness
-        peakFitness.append( max(populationFitness) )
-        # Store GA settings in in a dictionary
-        GA_settings = {'initialPopSize':initialPopSize,'parameterLength':binaryStringLength,
-                       'numberOfGenerations':numberOfGenerations, 'topNum':topNum,
-                       'childrenPerGeneration':childrenPerGeneration, 'crossoverPoints':crossoverPoints,
-                       'breedingVariation':breedingVariation, 'mutationRate':mutationRate,
-                       'includeFittestParents':includeFittestParents
-                       }
-    return allPopulations, allFitnesses, averageFitness, peakFitness, GA_settings, average_PPI_sizes, fitnessDictionary, x2k_parameters
+GA_df, GAsettings = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=8, crossoverPoints=6, crossoverLocations='random',\
+                       breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='modifiedRBO', selectionMethod='Tournament')  #targetAdjustedOverlap
 
-
-GAresults = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=5, topNum=2, childrenPerGeneration=8, crossoverPoints=3, breedingVariation=0, mutationRate=0.01, includeFittestParents=2, \
-                       fitness_method='target-adjusted overlap')
-
-
-allPopulations = GAresults[0]# Get all populations
-allFitnesses = GAresults[1] # Get all fitnesses
-averageFitness = GAresults[2] # Get averageFitness per generation
-peakFitness = GAresults[3] # Get the peakFitness per generation
-GA_settings = GAresults[4] # GA settings
-average_PPI_sizes = GAresults[5] # Average_PPI_sizes
-fitnessDictionary_revived = GAresults[6] # FitnessDIct
-X2Kparams =  GAresults[7]
-
-import Python_scripts.Extra_X2K_functions as Ex
-Ex.tell_parameters( Ex.getFittestIndividual(GAresults) )
-Ex.parameterEvolutionPlot(GAresults)
-
-
-###################################
-# 7. Plot results
-###################################
-import matplotlib.pyplot as plt
-# Plot averageFitness
-y1 = averageFitness
-y2 = peakFitness
-x = range(1,len(y1)+1)
-
-plt.plot(x, y1, 'bo--', markersize=3, label='Average Fitness')
-plt.plot(x, y2, 'm^--', markersize=3, label='Peak Fitness')
-plt.xlabel('Generation')
-plt.ylabel('Fitness')
-plt.show()
-plt.title('Fitness Over Generations')
-plt.legend(loc='lower right')
-
-# axes = plt.gca()
-# axes.set_ylim([0,30])
-
-
-
-######################################
-# Genetic Algorithm: Overfitting Test
-######################################
-# Calculate fitness for all individuals using only 250 of testgmt experiments, and again in other 250 of experiments
-    # Breed & mutate the fittest individuals
-# Calculate fitness of the new population using the 1st set of 250 and select top X fittest individuals
-    # Calculate fitness of new pop using 2nd set of 250
-# Repeat
 
 # ***************** SUBSET 1 *****************
 # Put Subset1 GMT file into testgmt folder
@@ -331,28 +241,10 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1
 #copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt")
 
 ## Run GA with Subset1
-FITNESS_METHOD='target-adjusted overlap'
-GAresults_Subset1 = GAfunction(initialPopSize=100, binaryStringLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90, crossoverPoints=5, breedingVariation=0, mutationRate=0.01, includeFittestParents=10,\
-                               fitness_method=FITNESS_METHOD)
+Subset1_df, GAsettings = GAfunction(initialPopSize=100, binaryStringLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90,\
+                                    crossoverPoints=5, crossoverLocations='random', breedingVariation=0, mutationRate=0.01, includeFittestParents=10, \
+                                    fitnessMethod='modifiedRBO', selectionMethod='Tournament')
 
-# # Recover fitnessDictionary
-# def recoverFitnessDictionary(GAresults):
-#     all_Fitness = GAresults[1]
-#     fitnessDictionary_Subset1 = {}
-#     allFitnesses = []
-#     for sublist in all_Fitness:
-#         for item in sublist:
-#             allFitnesses.append(item)
-#     allPopulations = GAresults[0]
-#     allBinaries = []
-#     for sublist in allPopulations:
-#         for item in sublist:
-#             allBinaries.append(item)
-#     FitnessDictionary = dict(zip(allBinaries, allFitnesses))
-#     return FitnessDictionary
-#
-# fitnessDictionary_Subset1 = recoverFitnessDictionary(GAresults_Subset1)
-#
 
 
 # ***************** SUBSET 2 *****************
@@ -377,61 +269,26 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2
 
 ## Run GA with Subset2
 # xxxxxxxx MAKE SURE YOU SHUT DOWN CHEA FIRST OR ELSE IT WON"T PRE-LOAD THE NEW TESTGMT!!!!!!!! xxxxxxxx
-fitnessDictionary = {} # Reset fitnessDict
-allFitnesses_Subset2 = []
-averageFitness_Subset2 = []
-genCount=0
-average_PPI_sizes_Subset2 = []
-for generation in GAresults_Subset1[0]:
-    genCount+=1
-    calcFitness_output = calculateFitness(generation, genCount=genCount, fitness_method=FITNESS_METHOD)
-    new_fitnesses  = calcFitness_output[0]
-    average_PPI_sizes_Subset2.append(calcFitness_output[1])
-    allFitnesses_Subset2.append(new_fitnesses)
-    averageFitness_Subset2.append( sum(new_fitnesses) / len(new_fitnesses) )
-peakFitness_Subset2 = []
-for generation in allFitnesses_Subset2:
-    peakFitness_Subset2.append(sorted(generation, reverse=True)[0])
-
+def runSubset2(Subset1_df, GAsettings):
+    import pandas as pd
+    allDataDF2=pd.DataFrame(columns=Subset1_df.columns)
+    for gen in Subset1_df.Generation.unique().tolist():
+        genPop = Subset1_df[Subset1_df.Generation==gen].newBinary.values.tolist()
+        allDataDF2 = allDataDF2.append( calculateFitness(genPop, genCount=gen, fitnessMethod=GAsettings['fitnessMethod'], allDataDF=allDataDF2))
+    return allDataDF2
+Subset2_df = runSubset2(Subset1_df, GAsettings)
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GA_results_L1000-DRH.wPPIlimiters_ShuffleCorrected.npy'
+GA_output_name = 'GAresults_GEO_Tournament.RBO.randCrossover.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
-np.save(results_dir+GA_output_name, [GAresults_Subset1, allFitnesses_Subset2, \
-                                          averageFitness_Subset2, peakFitness_Subset2, average_PPI_sizes_Subset2])
+np.save(results_dir+GA_output_name, [Subset1_df, Subset2_df, GAsettings])
 
-# Load
-import numpy as np
-results_file = 'GA_Results/'+GA_output_name
-np.load(results_file)
-
-
-
-
-
-# Plot trained vs. untrained
-## Average fitness
-import matplotlib.pyplot as plt
-y_s1 = GAresults_Subset1[2] # average fitness for each generation in TRAINED data
-y_s2 = averageFitness_Subset2
-x = range(len(y_s1))
-plt.plot(x, y_s1, 'c1--', markersize=7, label="Trained Results")
-plt.plot(x, y_s2, 'gx--', markersize=7, label="Untrained Results")
-plt.xlabel('Generation')
-plt.ylabel('Average Fitness')
-plt.legend(loc='lower right')
-
-# Peak fitness
-import matplotlib.pyplot as plt
-y_s1 = GAresults_Subset1[3] # average fitness for each generation in TRAINED data
-y_s2 = peakFitness_Subset2
-x = range(len(y_s1))
-plt.plot(x, y_s1, 'c1--', markersize=7, label="Trained Results")
-plt.plot(x, y_s2, 'gx--', markersize=7, label="Untrained Results")
-plt.xlabel('Generation')
-plt.ylabel('Peak Fitness')
-plt.legend(loc='lower right')
+# # Load
+# import numpy as np
+# results_file = 'GA_Results/'+GA_output_name
+# np.load(results_file)
+#

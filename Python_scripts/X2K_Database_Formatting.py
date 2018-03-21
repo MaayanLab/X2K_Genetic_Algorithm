@@ -19,10 +19,11 @@ def addSynonyms(geneList):
     geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)
     intersect = list(set(geneSyn[0]).intersection(geneList))
     for gene in intersect:
-        syn = geneSyn[geneSyn[0] == gene][1].values[0]
-        if syn not in geneList:
-            print("Adding synonym: " + syn)
-            geneList.append(syn)
+        syn = geneSyn[geneSyn[0] == gene][1].values.tolist()
+        for s in syn:
+            if s not in geneList:
+                print("Adding synonym: " + s)
+                geneList.append(s)
     print("New geneList length = " + str(len(geneList)))
     return geneList
 
@@ -44,34 +45,66 @@ for tf in mTF.Symbol.unique():
 TFs = addSynonyms(TFs)
 pd.Series(TFs[1]).to_csv("X2K_Databases/General_Resources/compiled-TFs_Mouse-Human.csv", index=False)
 
-# Get all Kinases
-## KEA
-with open("X2K_Genetic_Algorithm/data/KEA/kea_ranks.txt") as KEA_kinases:
-    KINASES = []
-    for line in KEA_kinases:
-        KINASES.append(line.split("\t")[0])
-## Kinase.com
-kinaseCom_HsapUpdated = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Hsap_updated.xls")
-kinaseCom_Hsap = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Hsap.xls")
-kinaseCom_Mmus = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Mmus.xls")
-kinaseCom_Mmus = kinaseCom_Mmus.rename(index=str, columns={"Gene Name": "Name"})
-kinaseCom_Mmus.columns
+# Get all Kinase Names, Groups, and Families
+# ## KEA
+# with open("X2K_Genetic_Algorithm/data/KEA/kea_ranks.txt") as KEA_kinases:
+#     KINASES = []
+#     for line in KEA_kinases:
+#         KINASES.append(line.split("\t")[0])
+# ## Kinase.com
+# kinaseCom_HsapUpdated = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Hsap_updated.xls")
+# kinaseCom_Hsap = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Hsap.xls")
+# kinaseCom_Mmus = pd.read_excel("X2K_Databases/General_Resources/Kinase.com/Kinome_Mmus.xls")
+# kinaseCom_Mmus = kinaseCom_Mmus.rename(index=str, columns={"Gene Name": "Name"})
+# kinaseCom_Mmus.columns
+#
+# kinaseGroups = pd.concat([ kinaseCom_HsapUpdated[["Name","Group","Family"]],\
+#           kinaseCom_Hsap[["Name","Group","Family"]],\
+#           kinaseCom_Mmus[["Name","Group","Family"]] ])
+# kinaseGroups.to_csv("X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv", header=True)
+# kinaseCom = list(set(kinaseCom_HsapUpdated.Name) | set(kinaseCom_Hsap.Name) | set(kinaseCom_Mmus.Name))
+# ## Merge lists
+# for k in kinaseCom:
+#     if k not in KINASES:
+#         KINASES.append(k)
 
-kinaseGroups = pd.concat([ kinaseCom_HsapUpdated[["Name","Group","Family"]],\
-          kinaseCom_Hsap[["Name","Group","Family"]],\
-          kinaseCom_Mmus[["Name","Group","Family"]] ])
-kinaseGroups.to_csv("X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv", header=True)
+## Maxime's Kinase Groups & Families (from Kinome.com)
+kinaseGroups = pd.read_table("X2K_Databases/General_Resources/Kinase_Families_Maxime/kinases_fam.tsv", header=None, names=["Name","Group","Family"], index_col=False)
+### Make kinase group/family dictionary
+kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
 
-kinaseCom = list(set(kinaseCom_HsapUpdated.Name) | set(kinaseCom_Hsap.Name) | set(kinaseCom_Mmus.Name))
-## Merge lists
-for k in kinaseCom:
-    if k not in KINASES:
-        KINASES.append(k)
+def addSynonymsToKinaseGroups(kgroupDict, kinaseList):
+    geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)
+    for i, kinase in enumerate(kinaseList):
+        if kinase in geneSyn[0] and kinase in kgroupDict.keys():
+            syns = list(geneSyn[geneSyn[0] == kinase][1].values)
+            for s in syns:
+                print("Adding to kgroupDict: "+s)
+                kgroupDict[s] = kgroupDict[kinase]
+    return kgroupDict
+KEA = pd.read_table("X2K_Genetic_Algorithm/data/KEA/kea_ranks.txt", header=None)
+kgroupDict = addSynonymsToKinaseGroups(kgroupDict, KEA[0].tolist())
+KINASES = kinaseGroups.Name.tolist()
 ## Add synonyms
 KINASES = addSynonyms(KINASES)
 pd.Series(KINASES).to_csv("X2K_Databases/General_Resources/compiled-Kinases_Mouse-Human.csv", index=False)
-
-
+### Add Group and Family info to name
+def getKinaseGroupAndFamily(kinaseList):
+    geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None, names=["Gene","GeneSyn"])
+    kinaseGroups = pd.read_csv("X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv")
+    kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
+    for k in kinaseList:
+        syns=[k]
+        if k in list(geneSyn.Gene):
+            newSyns = list( geneSyn[geneSyn.Gene == k].GeneSyn.unique() )
+            for s in newSyns:
+                syns.append(s)
+        overlap = list( set(syns).intersection(set(kgroupDict.keys())) )
+        if len(overlap) >0:
+            results = kgroupDict[overlap[0]]
+        else:
+            results = ["NA","NA"]
+    return results
 
 
 
@@ -595,7 +628,6 @@ def mitabToSig(iREF_df, output_path):
             geneB.append( inter.split("@")[1] )
             PMIDS.append(",".join(pmidList))
     # Make dataframe
-    NAs = ["NA"]*len(g)
     pd.DataFrame(np.column_stack([geneA, geneB, ]))
     with open(output_path, "w") as sig:
         # Only include interactions with no more than 5 PubMedIDs (to exclude any MassSpec experiments)
@@ -610,11 +642,6 @@ mitabToSig(iREF_df, output_path="X2K_Databases/PPI/iREF/Processing/iREF_02-2018_
 
 # iREF GMT
 def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse"], mergeSpecies=False):
-    def percentComplete(loopLength, iteration):
-        percent = round((iteration + 1) / loopLength * 100, 2)
-        if percent % 10 == 0:
-            print(str(percent) + "% complete")
-
     with open(output_path, "w") as gmt:
         # Include only TFs
         if subsetList != "":
@@ -622,6 +649,7 @@ def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse
         else:
             df = iREF_df
         for i, gene in enumerate(df.hgnc_A.unique()):
+            print("Processing: "+str(gene))
             # Keep species as separate lines
             def writeSpeciesLine(species):
                 speciesDict = {"Mouse": "taxid:10090(Mus musculus)", "Human": "taxid:9606(Homo sapiens)"}
@@ -630,8 +658,6 @@ def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse
                 if len(Bgenes) >= 5:  # Ony include genes with at least 5 interactors
                     newLine = gene + "\t" + "iREF_" + species + "\t" + "\t".join(Bgenes) + "\n"
                     gmt.write(newLine)
-                    percentComplete(loopLength=len(df.hgnc_A.unique()), iteration=i)
-
             if mergeSpecies == False:
                 for spec in speciesList:
                     writeSpeciesLine(spec)
@@ -639,11 +665,12 @@ def mitabToGMT(iREF_df, output_path, subsetList="", speciesList=["Human", "Mouse
             elif mergeSpecies == True:
                 sub = df[df.hgnc_A == gene]
                 Bgenes = list(sub.hgnc_B.unique())
+                Bgenes = [str(x) for x in Bgenes]
                 species = "Mouse-Human"
+                Group, Family = getKinaseGroupAndFamily([str(gene)])
                 if len(Bgenes) >= 5:  # Ony include genes with at least 5 interactors
-                    newLine = gene + "\t" + "iREF_" + species + "\t" + "\t".join(Bgenes) + "\n"
+                    newLine = str(gene) + "\t" + "-".join(["KinaseGroup:"+Group,"KinaseFamily:"+Family, "iREF_"]) + species + "\t" + "\t".join(Bgenes) + "\n"
                     gmt.write(newLine)
-                    percentComplete(loopLength=len(df.hgnc_A.unique()), iteration=i)
 
 
 # iREF GMT: Species as separate files
@@ -677,14 +704,15 @@ with open("X2K_Databases/KINASE/iPTMnet/Processing/readme.txt") as file:
 # Data
 score = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/score.txt", header=None)
 score.columns = ["substrate_AC", "site", "enzyme_AC", "ptm_type", "score"]
+
 score = score.dropna(subset=["enzyme_AC"])
 score.groupby("enzyme_AC").mean()
 score.head()
+
+
 # Protein metadata
-ptm = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/ptm.txt", header=None)
-ptm.columns = ["ptm_type", "source", "substrate_AC", "substrate_genename", "organism", "site", "enzyme_AC",
-               "enzyme_genename", "note", "pmid"]
-# ptm = ptm[(ptm.organism=="Homo sapiens (Human)")|(ptm.organism==)] # Can subset by species
+cols = ["ptm_type", "source", "substrate_AC", "substrate_genename", "organism", "site", "enzyme_AC","enzyme_genename", "note", "pmid"]
+ptm = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/ptm.txt", header=None, names=cols, dtype=dict(zip(cols, [str]*len(cols))))
 ptm.head()
 # Protein metadata 2?
 protein = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/protein.txt", header=None)
@@ -694,16 +722,12 @@ protein.head()
 # Convert substrates
 substrateDict = dict(zip(ptm.substrate_AC, zip(ptm.substrate_genename, ptm.pmid, ptm.organism)))
 enzymeDict = dict(zip(ptm.enzyme_AC, zip(ptm.enzyme_genename, ptm.organism)))
-# Make kinase group/family dictionary
-kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
+
 # Append synonyms as entries in kgroupDict
-geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)
-for i,row in score.iterrows():
-    enz = row.enzyme_AC
-    if enz in geneSyn[0] and enz in kgroupDict.keys():
-        syns = list(geneSyn[geneSyn[0]==enz][1].values)
-        for s in syns:
-            kgroupDict[s] = kgroupDict[enz]
+
+
+enzyme_Genes = [str(enzymeDict[x][0]) for x in score.enzyme_AC.tolist() if x in enzymeDict.keys()]
+kgroupDict = addSynonymsToKinaseGroups(kgroupDict, enzyme_Genes)
 
 # iterate over all interactions in iPTMnet
 substrateGenes=[]; enzymeGenes=[]; Scores=[]; PMIDS = []; Species=[]; KinaseGroup=[]; KinaseFamily=[]
@@ -737,6 +761,8 @@ groupedScores = convertedScores.groupby(keepCols)['Scores'].mean().reset_index()
 groupedScores.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt", sep="\t")
 
 groupedScores = pd.read_table("X2K_Databases/KINASE/iPTMnet/Processing/score_PPI.txt")
+groupedScores['substrateGenes'] =  groupedScores['substrateGenes'].astype(str)
+groupedScores['enzymeGenes'] =  groupedScores['enzymeGenes'].astype(str)
 
 # Prepare PPI in SIG format
 ## Subset humans and mice
@@ -748,7 +774,7 @@ mhScores['substrateGenes'] = mhScores['substrateGenes'].str.upper()
 mhScores['enzymeGenes'] = mhScores['enzymeGenes'].str.upper()
 mhScores.shape
 # Remove entries without PubMedIDs
-mhScores = mhScores.dropna(subset=["PMIDS"])
+mhScores = mhScores.dropna(subset=["PMIDS","enzymeGenes","substrateGenes"])
 mhScores.shape
 # Remove any duplicates
 mhScores = mhScores.drop_duplicates()
@@ -768,14 +794,16 @@ kinaseScores = iPTMnet_SIG[iPTMnet_SIG[0].isin(KINASES)]
 kinaseScores.columns = ['enzymeGenes','NA','NA','NA','NA','substrateGenes','NA','NA', 'KinaseGroup', 'KinaseFamily', 'Species', 'PMIDS', 'Scores']
 
 with open("X2K_Databases/KINASE/iPTMnet/iPTMnet-2018_Mouse-Human_KINASES.gmt","w") as GMT:
-    for ki in kinaseScores['enzymeGenes'].unique():
+    uniqueKinases = kinaseScores['enzymeGenes'].unique().tolist()
+    len(uniqueKinases)
+    for ki in uniqueKinases:
         kiSub = kinaseScores[kinaseScores['enzymeGenes'] == ki]
         for species in list(kiSub['Species'].unique()):
             spSub = kiSub[kiSub['Species']==species]
             interactors = spSub.sort_values(by=['substrateGenes'], ascending=False)['substrateGenes'].values
-            newName = "_".join([ki,"iPTMnet-"+"KinaseGroup:"+kiSub['KinaseGroup'].unique()[0]+"-KinaseFamily:"+kiSub['KinaseFamily'].unique()[0],species])+"_"
+            newName = "iPTMnet-"+"KinaseGroup:"+str(kiSub['KinaseGroup'].unique()[0])+"-KinaseFamily:"+str(kiSub['KinaseFamily'].unique()[0])+"_"+str(species)
             if len(interactors)>=1:
-                GMT.write(newName+"\t\t"+"\t".join(interactors)+"\n")
+                GMT.write(ki +"\t"+ newName+"\t"+"\t".join(interactors)+"\n")
 
 
 # -----------PHOSPHOSITE_PLUS-----------
@@ -785,27 +813,10 @@ noRXN = phos[(phos.IN_VIVO_RXN!="X") & (phos.IN_VITRO_RXN!="X")]
 noRXN.shape[0] # Just double checking that all kinase-substrate pairings have at least one kind of interaction
 
 ## Convert to KINASE GMT
-### Add Group and Family info to name
-def getKinaseGroupAndFamily(kinaseList):
-    geneSyn = pd.read_table("X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None, names=["Gene","GeneSyn"])
-    kinaseGroups = pd.read_csv("X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv")
-    kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
-    for k in kinaseList:
-        syns=[k]
-        if k in list(geneSyn.Gene):
-            newSyns = list( geneSyn[geneSyn.Gene == k].GeneSyn.unique() )
-            for s in newSyns:
-                syns.append(s)
-        overlap = list( set(syns).intersection(set(kgroupDict.keys())) )
-        if len(overlap) >0:
-            results = kgroupDict[overlap[0]]
-        else:
-            results = ["NA","NA"]
-    return results
-
 with open("X2K_Databases/KINASE/PhosphositePlus/PhosphositePlus-02-2018_Mouse-Human_KINASES.gmt","w") as PHOS:
     phosHM = phos[phos.KIN_ORGANISM.isin(["human","mouse"]) & phos.SUB_ORGANISM.isin(["human","mouse"])]
     for k in list(phosHM.GENE.unique()):
+        print("Processing: "+k)
         phosSub = phosHM[phosHM.GENE==k]
         Group, Family = getKinaseGroupAndFamily([k])
         for species in list(phosSub.KIN_ORGANISM.unique()):
@@ -814,21 +825,22 @@ with open("X2K_Databases/KINASE/PhosphositePlus/PhosphositePlus-02-2018_Mouse-Hu
             substrates = list(set(phosSub.SUB_GENE.values))
             cleanSubstrates = [x for x in substrates if str(x) != 'nan']
             cleanSubstrates = [x.upper() for x in cleanSubstrates]
-            newName = k.upper()+"_"+"-".join(["KinaseGroup:"+Group,"KinaseFamily:"+Family])+"-PHOSPHOSITE_"+Species+"_"
+            newName = "-".join(["KinaseGroup:"+Group,"KinaseFamily:"+Family])+"-PHOSPHOSITE_"+Species
             if len(substrates)>=1:
-                PHOS.write(newName+"\t\t"+"\t".join(cleanSubstrates)+"\n")
+                PHOS.write(k.upper()+"\t"+newName+"\t"+"\t".join(cleanSubstrates)+"\n")
 
 
 # -----------NetworkIN-----------
 ## Kinase-substrate predictions from neural networks
 ## "id" is the kinase name
-net = pd.read_table("X2K_Databases/KINASE/NetworkIN/Processing/networkin-05-2017_human_predictions_3.1.tsv")
+net = pd.read_table("X2K_Databases/KINASE/NetworkIN_2017/Processing/networkin-05-2017_human_predictions_3.1.tsv")
 net.head()
 
 ## Make GMT
 ### Need to apply a cutoff for 'networkin_score', otherwise it lists too many substrates
-with open("X2K_Databases/KINASE/NetworkIN/NetworkIN-05-2017_UnknownSpecies_KINASES.gmt","w") as newNet:
+with open("X2K_Databases/KINASE/NetworkIN_2017/NetworkIN-05-2017_UnknownSpecies_KINASES.gmt","w") as newNet:
     for k in list(net.id.unique()):
+        print("Processing: "+k)
         # Convert annoying greek alphabet to actual GeneSymbol
         for substring in ['alpha','beta','gamma','delta','epsilon','iota','theta','zeta']:
             if substring in k:
@@ -841,8 +853,8 @@ with open("X2K_Databases/KINASE/NetworkIN/NetworkIN-05-2017_UnknownSpecies_KINAS
         substrates = list( netMean.sort_values(by=['networkin_score'], ascending=False).substrate_name )
         substrates = [x.upper() for x in substrates]
         group,family = getKinaseGroupAndFamily([newK])
-        newName = newK+"_KinaseGroup:"+group+"-KinaseFamily:"+family+"-NetworkIN_UnknownSpecies_"
-        newNet.write(newName+"\t\t"+"\t".join(substrates)+"\n")
+        newName = "KinaseGroup:"+group+"-KinaseFamily:"+family+"-NetworkIN_UnknownSpecies_"
+        newNet.write(newK+"\t"+newName+"\t"+"\t".join(substrates)+"\n")
 
 
 # -----------HMS LINCS KINOMEscan-----------
@@ -908,6 +920,7 @@ for dbs in KEA.Databases.unique():
             allDbs.append(db)
 ## Split file into individual csv's
 for db in allDbs:
+    print("Processing CSV: "+db)
     newDF=pd.DataFrame(columns=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
     newPath = "X2K_Databases/KINASE/KEA_datasets/Processing/"+db+"_UnknownSpecies_KINASES.csv"
     for i,row in KEA.iterrows():
@@ -918,6 +931,7 @@ for db in allDbs:
     newDF.to_csv(newPath, header=None, index=False)
 ## Convert each csv to GMT
 for db in allDbs:
+    print("Processing GMT: "+db)
     path = "X2K_Databases/KINASE/KEA_datasets/Processing/" + db + "_UnknownSpecies_KINASES.csv"
     gmtPath = "X2K_Databases/KINASE/KEA_datasets/"+db+"_UnknownSpecies_KINASES.gmt"
     df = pd.read_csv(path, header=None, names=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
@@ -927,9 +941,9 @@ for db in allDbs:
             substrates = list(dfSub.Substrate.unique())
             group = dfSub.KinaseGroup.values[0]
             family = dfSub.KinaseFamily.values[0]
-            newName = k+"_"+"-".join(["KinaseGroup:"+group,"KinaseFamily:"+family,db])+"_UnknownSpecies_"
+            newName = "-".join(["KinaseGroup:"+group,"KinaseFamily:"+family,db])+"_UnknownSpecies"
             if len(substrates)>=1:
-                newGMT.write(newName+"\t\t"+"\t".join(substrates)+"\n")
+                newGMT.write(k+"\t"+newName+"\t"+"\t".join(substrates)+"\n")
 
 ############ Recombine new KEA file ##########
 files = os.listdir("X2K_Databases/KINASE/")
@@ -946,7 +960,6 @@ for db in files:
 
 
 # -----------MINT 2018-----------
-import os
 import pandas as pd
 ## colNames info found here: https://psicquic.github.io/MITAB27Format.html
 colNames = ["uniprotA", "uniprotB", "InteractionID", "InteractionID2","GeneInfoA","GeneInfoB","InteractionMethods","Authors","PMID","SpeciesA", "SpeciesB", "InteractionType", "SourceDatabase", "InteractionID3", "ConfidenceScore"]
@@ -1034,7 +1047,7 @@ def MINTtoKinaseGMT(MINTdf2, species=""):
             df = MINTkin[MINTkin.GeneSymbolA==gene]
             dfGrouped  = df.groupby('GeneSymbolB').mean()
             interactors = list( dfGrouped.sort_values(by=['ConfidenceScore'], ascending=False).index )
-            newName = "MINT-03-2018_Kinases"+species
+            newName = "MINT-03-2018_Kinases_"+species
             if len(interactors)>=5:
                 GMT.write(gene+"\t"+newName+"\t"+"\t".join(interactors)+"\n")
 MINTtoKinaseGMT(MINTdf2, "Mouse-Human")
