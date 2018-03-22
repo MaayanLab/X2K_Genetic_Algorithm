@@ -12,7 +12,7 @@ def createPopulation(popSize, binaryStringLength):
         populationinit.append(''.join(choice(('0', '1')) for _ in range(binaryStringLength)) )
         print(populationinit[i])
     return populationinit
-# population = createPopulation(5, 43)
+# population = createPopulation(20, 43)
 
 ###################################
 # 2. Calculate fitness
@@ -62,7 +62,8 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
     fitDF['baselineFitness'] = pd.to_numeric(fitDF['baselineFitness'], errors='ignore')
     fitDF['PPI_size'] = pd.to_numeric(fitDF['PPI_size'], errors='ignore')
     return fitDF
-# fitDF, allDataDF = calculateFitness(population)
+# allDataDF = pd.DataFrame(columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters'])
+# fitDF = calculateFitness(population, allDataDF)
 
 
 
@@ -79,13 +80,27 @@ def selectFittest(topNum, fitDF, selectionMethod='Fitness-proportional'):
     ## Split the population into equal subgroups, and then select the fittest individual from each group
     elif selectionMethod == 'Tournament':
         fittestDF=pd.DataFrame()
-        # You
         if fitDF.shape[0] % topNum!=0:
             print("Tournament selection requires that populationSize/topNum and childrenPerGeneration/topNum are both whole numbers.")
         subsetSize = int( fitDF.shape[0] / topNum )
         for t in range(topNum):
             subDF = fitDF.sample(n=subsetSize, replace=False)
-            fittestDF = fittestDF.append( subDF.sort_values(by=['Fitness'], ascending=False).iloc[0,:] )
+            fittestDF = fittestDF.append( subDF.sort_values(by=['Fitness'], ascending=False).iloc[0,:].copy())
+    elif selectionMethod == 'mixedTournament':
+        if fitDF.shape[0]%topNum!=0 or topNum%2!=0:
+            print("Tournament selection requires that populationSize/topNum, childrenPerGeneration/topNum, and topNum/2 to be whole numbers.")
+        topNumHalf = int(topNum/2)
+        sortedDF = fitDF.sort_values(by=['Fitness'], ascending=False).copy()
+        # The first half of the new pop are the fittest parents overall
+        fittestDF = sortedDF.iloc[:topNumHalf, :].copy()
+        # Then run Tournament selection on the rest of the population to get the other half of the new pop
+        everybodyElse = sortedDF.iloc[topNumHalf:, :].copy()
+        subsetSize = int(everybodyElse.shape[0] / topNumHalf)
+        for t in range(topNumHalf):
+            subDF = everybodyElse.sample(n=subsetSize, replace=False)
+            fittestDF = fittestDF.append(subDF.sort_values(by=['Fitness'], ascending=False).iloc[0, :].copy())
+    else:
+        print("Use viable 'selectionMethod'")
     return fittestDF
 # fittestDF = selectFittest(5, fitDF, selectionMethod="Tournament")
 
@@ -181,20 +196,22 @@ def createChildren(numberOfChildren, fittestDF, mutationRate, breedingVariation,
 ###################################
 
 
-def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, crossoverLocations, breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod):
+def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, crossoverLocations, breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod, setInitialPopulation=False):
     # Store GA settings in in a dictionary
     GAsettings = dict(zip(
         ['initialPopSize', 'binaryStringLength', 'numberOfGenerations', 'topNum', 'childrenPerGeneration',\
-         'crossoverPoints', 'crossoverLocations','breedingVariation', 'mutationRate', 'includeFittestParents', 'fitnessMethod','selectionMethod'], \
+         'crossoverPoints', 'crossoverLocations','breedingVariation', 'mutationRate', 'includeFittestParents', 'fitnessMethod','selectionMethod', 'setInitialPopulation'], \
         [initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints,crossoverLocations,\
-         breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod]))
+         breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod, setInitialPopulation]))
     import pandas as pd
     allDataDF = pd.DataFrame(columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
                                       'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters'])
     print("Creating initial population...")
-    population = createPopulation(initialPopSize, binaryStringLength)
+    if setInitialPopulation==False:
+        population = createPopulation(initialPopSize, binaryStringLength)
+    else:
+        population = setInitialPopulation
     genCount = 1
-    import pandas as pd
     # Loop through n generations:
     for i in range(numberOfGenerations):
         print()
@@ -214,7 +231,8 @@ def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, 
     return allDataDF, GAsettings
 
 GA_df, GAsettings = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=8, crossoverPoints=6, crossoverLocations='random',\
-                       breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='modifiedRBO', selectionMethod='Tournament')  #targetAdjustedOverlap
+                       breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='modifiedRBO', selectionMethod='mixedTournament', setInitialPopulation=False)
+                        #targetAdjustedOverlap
 
 
 # ***************** SUBSET 1 *****************
@@ -243,7 +261,7 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1
 ## Run GA with Subset1
 Subset1_df, GAsettings = GAfunction(initialPopSize=100, binaryStringLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90,\
                                     crossoverPoints=5, crossoverLocations='random', breedingVariation=0, mutationRate=0.01, includeFittestParents=10, \
-                                    fitnessMethod='modifiedRBO', selectionMethod='Tournament')
+                                    fitnessMethod='targetAdjustedOverlap', selectionMethod='mixedTournament') # modifiedRBO
 
 
 
@@ -280,7 +298,7 @@ Subset2_df = runSubset2(Subset1_df, GAsettings)
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GAresults_GEO_Tournament.RBO.randCrossover.npy'
+GA_output_name = 'GAresults_GEO_Tournament.TAO.randCrossover.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):

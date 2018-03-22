@@ -21,6 +21,7 @@ def parameterDF(GA_df):
     df["KINASE_topKinases"] = df["KEA_parameters"].str.split(";").apply(lambda x: x[4])
 
     df['Generation'] = pd.to_numeric(df['Generation'])
+    df['uniqueID'] = range(0,len(df))
     return df
 # data = parameterDF(GA_df)
 
@@ -47,7 +48,6 @@ def getDatabaseFrequencies(parameter, data):
             Type = parameter.split("_")[0]
             df = pd.DataFrame(np.column_stack([[gen]*len(dbCount),[Type]*len(dbCount), genPercent.index, dbCount, genPercent]),columns=cols)
             allMeasuresDF['WithinGenPercent'] = pd.to_numeric(allMeasuresDF['WithinGenPercent'])
-
             # Percent: Across all previous generation and the current one
             if i==0: # On the first iteration, allMeasuresDF doesn't have anything in it yet
                 df['cumulPercent'] = df['WithinGenPercent']
@@ -56,6 +56,7 @@ def getDatabaseFrequencies(parameter, data):
             # Append to overall DF
             allMeasuresDF = allMeasuresDF.append(df)
         allMeasuresDF["cumulPercent"] = pd.to_numeric(allMeasuresDF['cumulPercent'])
+        allMeasuresDF["WithinGenPercent"] = pd.to_numeric(allMeasuresDF['WithinGenPercent'])
         return allMeasuresDF
     if parameter=='PPI_databases':
         PPI_databases = ["BIND", "BIOGRID", "BIOCARTA", "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG", \
@@ -72,15 +73,15 @@ def getDatabaseFrequencies(parameter, data):
 
 
 
-
 # Make super awesome plot showing evolution of parameter distribution over generations/time
-def parameterEvolutionPlot(GA_df, figsize=(24,20)):
+def parameterEvolutionPlot(GA_df, figsize=(24,20), padRight=.8, padLeft=.2):
     data = parameterDF(GA_df)
     import matplotlib.pyplot as plt
+    import numpy as np
     # Setup dimension vars
     parameters = ['TF_sort','TF_species','TF_databases','TF_topTFs','PPI_databases','PPI_pathLength','PPI_minLength','PPI_maxLength','PPI_finalSize','KINASE_sort','KINASE_databases']
     param_num = len(parameters)
-    fitness_rows = 5; PPI_size_rows = 1; padRight=.6; padLeft=.2
+    fitness_rows = 5; PPI_size_rows = 1
     nrows = fitness_rows+PPI_size_rows+param_num+2
     # Setup Fitness data
     Fitness_avg = data.groupby('Generation')["Fitness"].mean()
@@ -88,7 +89,7 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20)):
 
     # Fitness plot
     yerr1 = data.groupby('Generation')["Fitness"].std()
-    x = Fitness_avg.index
+    x = Fitness_avg.index.tolist()
     ax1 = plt.subplot2grid((nrows, 1), (0, 0), facecolor='whitesmoke', rowspan=fitness_rows)
     plt.gcf().set_facecolor('white')  # Change plot border background color
     plt.errorbar(x, Fitness_avg, yerr=yerr1, color='blue', marker='o',markersize=5, capsize=2, label=" Average Fitness")
@@ -102,7 +103,7 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20)):
     #plt.ylim([0, max(data['Fitness'])+5])
     plt.subplots_adjust(right=padRight, left=padLeft)
     plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=1)  # bbox_to_anchor=(horizontal, vertical)
-    #plt.xticks(np.arange(0, max(x) + 1, 5))
+    plt.xticks(np.arange(0, max(x) + 1, 5))
 
     # Setup PPI size data:
     ## Calculate the population average PPI of individual average PPIs
@@ -116,7 +117,7 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20)):
     plt.tick_params(axis='x', labelbottom='off')
     plt.tick_params(axis='y', labelsize=7)
     #plt.yticks(np.arange(0, max(data['Average_PPI_size']), 3500))
-    #plt.xticks( np.arange(0, max(x) + 1, 5) )
+    plt.xticks( np.arange(0, max(x) + 1, 5) )
 
     # Parameter plots
     import seaborn as sns
@@ -124,10 +125,10 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20)):
         row_num = i+(fitness_rows+PPI_size_rows)+2 # Skip the first 3 rows since the other plot is occupying that space
         new_ax = 'ax' + str(row_num)
         if parameter in ["PPI_databases"]:
-            dbProportions = getDatabaseFrequencies(parameter, data).loc[:,['Generation','Name','cumulPercent']]
+            dbProportions = getDatabaseFrequencies(parameter, data).loc[:,['Generation','Name','WithinGenPercent']] # cumulPercent
             dbNames = dbProportions.Name.unique().tolist()
             unstackedData = dbProportions.groupby(['Generation','Name']).mean().unstack()
-            sns.set_palette(sns.color_palette("cubehelix", len(dbNames) ))  # Run this BEFORE you create your subplot
+            sns.set_palette(sns.color_palette("hls", len(dbNames) ))  # husl (for equal color intensity as humans percieve them)
             exec(new_ax + " = plt.subplot2grid((nrows, 1), (row_num, 0))")
             unstackedData.plot(kind='area', ax=eval(new_ax), stacked=True)
             leg = plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=7, labels=dbNames, fontsize='small', markerscale=1, columnspacing=None)
@@ -139,9 +140,9 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20)):
             plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
 
         else:
+            tab1 = freqTable(data, parameter)
             sns.set_palette(sns.color_palette("BuPu", len(tab1.columns)))  # Run this BEFORE you create your subplot
             exec(new_ax + " = plt.subplot2grid((nrows, 1), (row_num, 0))")
-            tab1 = freqTable(data, parameter)
             # Run ax variable from string
             tab1.plot(kind='area', ax=eval(new_ax), stacked=True, figsize=figsize)  # , colors=['hotpink','slateblue','navy']
             plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=70)  # bbox_to_anchor=(horizontal, vertical)
@@ -150,12 +151,11 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20)):
             plt.tick_params(axis='x', labelsize=12)
             plt.xlabel('Generation',fontsize=12)
             plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
-            #plt.xticks(np.arange(0, max(x) + 1, 5))
+            plt.xticks(np.arange(0, max(x) + 1, 5))
             plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
             if i != param_num-1: # Turn of xtick labels for all but bottom plot
                 plt.tick_params(axis='x', labelbottom='off')
                 plt.xlabel('')
-
 # parameterEvolutionPlot(GAresults)
 
 
@@ -163,19 +163,19 @@ def ParameterViolinPlots(GA_df, numRows=2, numCols=5, figSize=(10,6)):
     import seaborn as sns
     import matplotlib.pyplot as plt
     df = parameterDF(GA_df)
-    tested_parameters = [x for x in df.columns if x not in ['Average_PPI_size','Binary','KINASE_topKinases','KINASE_background','PPI_databases','TF_background']]  # Remove specific parameter
-    data =  df[[col for col in df.columns if col in tested_parameters]] # Filter database by revelvant paramters
+    tested_parameters = ["TF_sort","TF_species","TF_databases","TF_topTFs","PPI_minLength","PPI_maxLength","PPI_finalSize","KINASE_sort","KINASE_databases"]
+    data =  df[[col for col in df.columns if col in ["Fitness"]+tested_parameters]] # Filter database by revelvant paramters
     plt.figure(figsize=figSize)
-    for i,parameter in enumerate(reversed(data.columns[1:])):
+    for i,parameter in enumerate(tested_parameters):
         # Turn ax string into variable
         #sns.set_palette(sns.color_palette("BuPu", len(data[parameter].unique()) ))  # Run this BEFORE you create your subplot
         ax = plt.subplot(numRows, numCols, i+1)
         #pd.DataFrame.boxplot(data, column='Fitness', by=parameter, ax=ax, grid=False, notch=True, patch_artist=True, rot=45)
-        sns.violinplot(x=parameter, y="Fitness", data=data, palette="BuPu", ax=ax)
+        sns.violinplot(x=parameter, y="Fitness", data=data, palette="BuPu", ax=ax, boxprops=dict(alpha=.7))
         plt.xticks(rotation=45, ha='right')
         plt.title(parameter)
         plt.ylabel(''); plt.xlabel('')
-        if i == 0 or i == 3:
+        if i == 0 or i == 6:
             plt.ylabel('Fitness')
     plt.subplots_adjust(hspace=.75, wspace=.5, bottom=.2)
     plt.gcf().set_facecolor('white')
@@ -183,27 +183,29 @@ def ParameterViolinPlots(GA_df, numRows=2, numCols=5, figSize=(10,6)):
 
 
 
-
-def fitnessHistogramCurves(allFitnesses, genSpacing=2, figSize=(10,6)):
+def fitnessHistogramCurves(GA_df, genSpacing=2, figSize=(10,6)):
+    df = GA_df.copy()
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import cm
     import seaborn as sns
     import numpy as np
-    #whichGens = [0] + list(range(-1, len(allFitnesses)+1))[0::gen_spacing][1:]
-    count = 0
-    whichGens = [0]
-    while count <= len(allFitnesses)-genSpacing-1:
-        whichGens.append(count+genSpacing)
-        count += genSpacing
-
+    import pandas as pd
+    df["Generation"] = pd.to_numeric(df.Generation)
+    if genSpacing==0:
+        whichGens=df.Generation.unique()
+    else:
+        count = 1
+        whichGens = [1]
+        while count <= len(df.Generation.unique())-genSpacing-1:
+            whichGens.append(count+genSpacing)
+            count += genSpacing
     color = cm.rainbow(np.linspace(0, 1, len(whichGens)))
 
     plt.figure()
     for i,gen in enumerate(whichGens):
-        # LINE METHOD
-        datos=allFitnesses[i]
+        datos=df[df.Generation==gen].Fitness
         # Use kernal density plot function from seaborn
-        sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen+1), gridsize=100)
+        sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen), gridsize=100)
     plt.xlabel('Fitness')
     plt.ylabel('Frequency')
     #plt.title('Distribution of All Fitnesses: Every %.0f Generation(s)' % (gen_spacing))
@@ -267,7 +269,10 @@ def parameterStats(GA_df, writeExcel='No'):
         # Write AOV results to excel file
         print("Writing AOV results to excel file...")
         writer = pd.ExcelWriter(writeExcel)
+        print("***** Fitness.Vs.Parameters *****")
         parameterResults.to_excel(writer, 'Fitness.Vs.Parameters')
+        print()
+        print("***** Fitness.Vs.baselineFitness *****")
         baselineResults.to_excel(writer, 'Fitness.Vs.baselineFitness')
         writer.save()
     return parameterResults, baselineResults
@@ -277,82 +282,73 @@ def parameterStats(GA_df, writeExcel='No'):
 
 
 
-# X2K Fitness Function
-try:
-    del X2K_fitness
-except NameError:
-    pass
-from Python_scripts.X2K_Pipeline import X2K_fitness
-
-fitnessDictionary = {}
-ppiSizeDictionary = {}
-def calculateFitness(population, genCount='', fitness_method='simple'):
-    indCount = 1
-    fitness = []
-    avg_PPI_size = []
-    for i in range(len(population)):
-        print()
-        print("****** Generation "+str(genCount)+"  ::  Individual " + str(indCount) + " ******")
-        print(population[i])
-        # Delete .DS_Store files
-        import os
-        print("(Deleting .DS_Store files...)")
-        for root, dirs, files in os.walk(os.getcwd()):
-            for file in files:
-                if file.endswith(".DS_Store"):
-                    print(os.path.join(root, file))
-                    os.remove(os.path.join(root, file))
-        # Calculate fitness (ONLY if it hasn't been previously calculated)
-
-        if population[i] not in fitnessDictionary:
-            # FITNESS
-            #new_fitness = sum(map(int, population[i])) # Test fitness
-            X2K_output = X2K_fitness(population[i],fitness_method)
-            new_fitness = X2K_output[0]  # Real fitness
-            fitness.append(new_fitness)
-            # AVERAGE PPI SIZE
-            new_PPIsize = X2K_output[1]
-            avg_PPI_size.append(new_PPIsize)
-            # Store calculated values in dictionaries
-            fitnessDictionary[population[i]] = new_fitness
-            ppiSizeDictionary[population[i]] = new_PPIsize
-            print("PPI Size = " +str(new_PPIsize))
-        else:
-            fitness.append( fitnessDictionary[population[i]] )
-            avg_PPI_size.append(ppiSizeDictionary[population[i]])
-            print("{Using previously calculated fitness: " + str( fitnessDictionary[population[i]] ) + "}")
-            print("PPI Size = " + str(ppiSizeDictionary[population[i]]))
-        indCount += 1
-    return fitness, avg_PPI_size
-
 # Get all individuals with the peak fitness in the final generation
-# then calculate the percentage of those individuals that have the most common parameter option
-def topParameterReport(GAresults):
-    import matplotlib.pyplot as plt
-    import seaborn as sn
-    df = parameterDF(GAresults)
-    # Filter only those that had the highest fitness score
-    df2 = df[(df["Fitness"]==max(df.Fitness)) & (df["Generation"]==max(df.Generation))]
-    # If there's less than 10 instances of the same top fitness, use the top 10 fitnesses instead
-    if len(df2) <= 10:
-        df2 = df.sort_values(by=['Fitness'], ascending=False).head(10)
-    # Print percentages
-    params = ['KINASE_background', 'KINASE_interactome', 'KINASE_sort',\
-           'KINASE_topKinases', 'PPI_databases', 'PPI_pathLength', 'TF_background',\
-           'TF_databases', 'TF_sort', 'TF_species', 'TF_topTFs']
-    plt.figure()
-    plt.subplots(2, 3, sharey=True)
-    f, ax = plt.subplots(3, 4, sharey=True)
+def topParametersReport(GA_df):
+    fittestDF = GA_df.sort_values(by=['Fitness'], ascending=False).iloc[:10, :]
+    data = parameterDF(fittestDF)
+    uniqueOptimizations = data.iloc[:,4:].drop_duplicates()
 
-    for i,param in enumerate(params):
-        paramFreqs = df2.groupby([param])[param].count()
-        percent = round(max(paramFreqs) / sum(paramFreqs)*100,2)
-        if param == 'PPI_databases':
-                if percent != 100:
-                    dfSorted = paramFreqs.sort_values(ascending=False)
-                    topRow = dfSorted.head(2)
-                    secondRow = paramFreqs
-        print(param+": "+str(percent)+"% of the fittest individuals chose <"+paramFreqs.idxmax()+">")
-        #paramFreqs.plot(kind='bar', x=paramFreqs.index, y=paramFreqs, stacked=True)
-        plt.subplot(3,4,i+1)
-        sn.barplot(y=paramFreqs, x=paramFreqs.index)
+    # if len(uniqueOptimizations)>1:
+    #     """
+    #     Get the frequency of each database used amongst only the fittest individuals
+    #     to determine how much variation there was for the "best" parameter choice
+    #     """
+    #     ppiDbFreq  = getDatabaseFrequencies("PPI_databases",data).groupby('Name').mean()
+    #     freqTable("TF_sort",data)
+    return uniqueOptimizations
+
+# Plot different aspects of fitness for Training Data, Test Data, and baselineFitness
+def plotAverageFitness(GA_df1, GA_df2, barsOrFill):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    data1 = parameterDF(GA_df1)
+    data2 = parameterDF(GA_df2)
+
+    fig, ax1 = plt.subplots(nrows=1, ncols=1, sharey=True)
+    def tsplot(ax, data, measure, linestyle='', color='', marker='',barsOrFill="fill", **kw):
+        est =  data.groupby('Generation')[measure].mean()
+        x = range(1, len(est)+1)
+        sd = data.groupby('Generation')[measure].std()
+        cis = (est - sd, est + sd)
+        if barsOrFill=="fill":
+            ax.fill_between(x, cis[0], cis[1], alpha=0.2, color=color, **kw)
+        elif barsOrFill=="bars":
+            ax.errorbar(x, est, yerr=sd, color=color, marker=marker, capsize=2)
+        ax.plot(x, est, linestyle=linestyle, color=color, marker=marker)
+    errorSelection="fill"
+    tsplot(ax1, data1, measure="Fitness", linestyle="-", color='c', marker='o', barsOrFill=errorSelection)
+    tsplot(ax1, data2, measure="Fitness", linestyle="-", color='g', marker='s', barsOrFill=errorSelection)
+    tsplot(ax1, data1, measure="baselineFitness", linestyle="--", color='r', marker='x', barsOrFill=errorSelection)
+    ax1.legend(loc='lower center', borderaxespad=0.5, labels=["Training","Test Data","Randomized Baseline"], ncol=70)
+    plt.xlabel('Generation')
+    plt.ylabel('Average Fitness')
+    plt.xticks(np.arange(0, max(data1.Generation) + 1, 5))
+    plt.ylim([0,30])
+    plt.gcf().set_facecolor('white')  # Change plot border background color
+
+
+def plotPeakFitness(GA_df1, GA_df2):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    data1 = parameterDF(GA_df1)
+    data2 = parameterDF(GA_df2)
+    # Peak Fitness plot
+    fig, ax2 = plt.subplots(nrows=1, ncols=1, sharey=True)
+    ## Subset 1
+    y1 = data1.groupby('Generation')["Fitness"].max()
+    x = range(1, len(y1)+1)
+    ## Subset 2
+    y2 = data2.groupby('Generation')["Fitness"].max()
+    ## Randomized Baseline
+    y3 = data1.groupby('Generation')["baselineFitness"].max()
+    # Plot
+    ax2.errorbar(x, y1, color='c', marker='o', capsize=2, label="Training Data")
+    ax2.errorbar(x, y2, color='g', marker='s', capsize=2, label="Test Data")
+    ax2.errorbar(x, y3, linestyle="--", color='r', marker='x',capsize=2, label="Randomized Baseline")
+    ax2.legend(loc='lower right', borderaxespad=2)
+    plt.xlabel('Generation')
+    plt.ylabel('Peak Fitness')
+    plt.ylim([0,30])
+    plt.xticks(np.arange(0, max(x) + 1, 5))
+    plt.gcf().set_facecolor('white')  # Change plot border background color
+
