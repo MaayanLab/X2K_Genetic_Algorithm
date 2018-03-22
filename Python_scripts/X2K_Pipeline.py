@@ -18,8 +18,10 @@
 # letterString = makeString(43)
 
 
-directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
+#directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
 #directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
+directory='/Users/maayanlab/Desktop/X2K_Genetic_Algorithm/data/'
+
 
 # binaryString = '0001011000100101100010011100011101100101011'
 
