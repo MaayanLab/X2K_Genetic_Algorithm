@@ -22,6 +22,10 @@ def parameterDF(GA_df):
 
     df['Generation'] = pd.to_numeric(df['Generation'])
     df['uniqueID'] = range(0,len(df))
+    # Get the average number of kinases produced by X2K for each experiment
+    numKinases = GA_df['predictedKinases'].str.split(';').apply(lambda parts: [len(x.split(",")) for x in parts]).copy()
+    df['avgNumKinases'] = numKinases.apply(lambda x: (sum(x) / len(x)))
+
     return df
 # data = parameterDF(GA_df)
 
@@ -74,15 +78,17 @@ def getDatabaseFrequencies(parameter, data):
 
 
 # Make super awesome plot showing evolution of parameter distribution over generations/time
-def parameterEvolutionPlot(GA_df, figsize=(24,20), padRight=.8, padLeft=.2):
+def parameterEvolutionPlot(GA_df, figsize=(24,30), padRight=.8, padLeft=.2):
     data = parameterDF(GA_df)
     import matplotlib.pyplot as plt
     import numpy as np
+    import itertools
     # Setup dimension vars
     parameters = ['TF_sort','TF_species','TF_databases','TF_topTFs','PPI_databases','PPI_pathLength','PPI_minLength','PPI_maxLength','PPI_finalSize','KINASE_sort','KINASE_databases']
     param_num = len(parameters)
     fitness_rows = 5; PPI_size_rows = 1
-    nrows = fitness_rows+PPI_size_rows+param_num+2
+    ppi_dbs = len(getDatabaseFrequencies("PPI_databases", data).Name.unique())-1
+    nrows = fitness_rows+PPI_size_rows+param_num+2+ppi_dbs
     # Setup Fitness data
     Fitness_avg = data.groupby('Generation')["Fitness"].mean()
     Fitness_peak = data.groupby('Generation')["Fitness"].max()
@@ -125,20 +131,36 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20), padRight=.8, padLeft=.2):
         row_num = i+(fitness_rows+PPI_size_rows)+2 # Skip the first 3 rows since the other plot is occupying that space
         new_ax = 'ax' + str(row_num)
         if parameter in ["PPI_databases"]:
-            dbProportions = getDatabaseFrequencies(parameter, data).loc[:,['Generation','Name','WithinGenPercent']] # cumulPercent
+            dbProportions = getDatabaseFrequencies(parameter, data).loc[:,['Generation','Name','cumulPercent']] # withinGenPercent
             dbNames = dbProportions.Name.unique().tolist()
+            """
+            #---- Plot cumulative or withinGen percent (all dbs in same subplot)
             unstackedData = dbProportions.groupby(['Generation','Name']).mean().unstack()
             sns.set_palette(sns.color_palette("hls", len(dbNames) ))  # husl (for equal color intensity as humans percieve them)
             exec(new_ax + " = plt.subplot2grid((nrows, 1), (row_num, 0))")
             unstackedData.plot(kind='area', ax=eval(new_ax), stacked=True)
             leg = plt.legend(loc='center left', bbox_to_anchor=(1, .5), ncol=7, labels=dbNames, fontsize='small', markerscale=1, columnspacing=None)
+            # plt.legend(["Optimized database combination (of "+str(len(tab1.columns))+"):\n"+bestPPIdbs],loc='center left', bbox_to_anchor=(1, .5), ncol=70)
             # set the linewidth of each legend object
             for legobj in leg.legendHandles:
                 legobj.set_linewidth(5.0)
-            #plt.legend(["Optimized database combination (of "+str(len(tab1.columns))+"):\n"+bestPPIdbs],loc='center left', bbox_to_anchor=(1, .5), ncol=70)
             plt.xlabel('')
             plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
-
+            """
+            #---- Plot cumulative or withinGen percent (each db in different subplot)
+            palette = itertools.cycle(sns.color_palette("hls", len(dbNames)))
+            for db in dbNames:
+                plotCount=1
+                row_num+=plotCount
+                exec(new_ax + " = plt.subplot2grid((nrows, 1), (row_num, 0))")
+                dbSub = dbProportions[dbProportions.Name==db]
+                dbSub.plot(x="Generation",y="cumulPercent", kind="area", color=next(palette), label=db, ax=eval(new_ax))
+                plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
+                plt.legend(loc='center left', bbox_to_anchor=(1, .5))
+                plt.tick_params(axis='x', labelbottom='off')
+                plt.xlabel('')
+                plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
+                plotCount+=1
         else:
             tab1 = freqTable(data, parameter)
             sns.set_palette(sns.color_palette("BuPu", len(tab1.columns)))  # Run this BEFORE you create your subplot
@@ -153,9 +175,12 @@ def parameterEvolutionPlot(GA_df, figsize=(24,20), padRight=.8, padLeft=.2):
             plt.ylabel(parameter, rotation=0, labelpad=50, fontsize=12)
             plt.xticks(np.arange(0, max(x) + 1, 5))
             plt.subplots_adjust(right=padRight, left=padLeft)  # Expand plot area to get more of legends in view
-            if i != param_num-1: # Turn of xtick labels for all but bottom plot
-                plt.tick_params(axis='x', labelbottom='off')
-                plt.xlabel('')
+            plt.tick_params(axis='x', labelbottom='off')
+            plt.xlabel('')
+    plt.xticks(np.arange(0, max(x) + 1, 5))
+    plt.xlabel("Generation")
+    eval(new_ax).yaxis.set_major_locator(plt.NullLocator())
+    eval(new_ax).xaxis.set_major_formatter(plt.NullFormatter())
 # parameterEvolutionPlot(GAresults)
 
 
@@ -298,13 +323,13 @@ def topParametersReport(GA_df):
     return uniqueOptimizations
 
 # Plot different aspects of fitness for Training Data, Test Data, and baselineFitness
-def plotAverageFitness(GA_df1, GA_df2, barsOrFill):
+def plotFitness(GA_df1, GA_df2, barsOrFill):
     import matplotlib.pyplot as plt
     import numpy as np
     data1 = parameterDF(GA_df1)
     data2 = parameterDF(GA_df2)
 
-    fig, ax1 = plt.subplots(nrows=1, ncols=1, sharey=True)
+    fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, ncols=1, sharex=True, sharey=False)
     def tsplot(ax, data, measure, linestyle='', color='', marker='',barsOrFill="fill", **kw):
         est =  data.groupby('Generation')[measure].mean()
         x = range(1, len(est)+1)
@@ -315,40 +340,105 @@ def plotAverageFitness(GA_df1, GA_df2, barsOrFill):
         elif barsOrFill=="bars":
             ax.errorbar(x, est, yerr=sd, color=color, marker=marker, capsize=2)
         ax.plot(x, est, linestyle=linestyle, color=color, marker=marker)
+
     errorSelection="fill"
+    # Average # PKs
+    tsplot(ax0, data1, measure="avgNumKinases", linestyle="-", color='m', marker='o', barsOrFill=errorSelection)
+    ax0.legend(loc='center left', bbox_to_anchor=(1, .5), labels=['Average #\nPredicted Kinases'])
+    ax0.set_ylabel('Average # \nPredicted Kinases')
+
+    # Average fitness
     tsplot(ax1, data1, measure="Fitness", linestyle="-", color='c', marker='o', barsOrFill=errorSelection)
     tsplot(ax1, data2, measure="Fitness", linestyle="-", color='g', marker='s', barsOrFill=errorSelection)
     tsplot(ax1, data1, measure="baselineFitness", linestyle="--", color='r', marker='x', barsOrFill=errorSelection)
-    ax1.legend(loc='lower center', borderaxespad=0.5, labels=["Training","Test Data","Randomized Baseline"], ncol=70)
-    plt.xlabel('Generation')
-    plt.ylabel('Average Fitness')
+    ax1.legend(loc='center left', bbox_to_anchor=(1, .5), labels=["Test Data","Training Data","Baseline Fitness"])
+    ax1.set_ylabel('Average Fitness')
+
+    # Peak fitness
+    import pandas as pd
+    x = pd.to_numeric(data1['Generation'].unique()).tolist()
+    ax2.errorbar(x, data1.groupby('Generation')["Fitness"].max(), color='c', marker='o', capsize=2, label="Training Data")
+    ax2.errorbar(x, data2.groupby('Generation')["Fitness"].max(), color='g', marker='s', capsize=2, label="Test Data")
+    ax2.errorbar(x, data1.groupby('Generation')["baselineFitness"].max(), linestyle="--", color='r', marker='x',capsize=2, label="Randomized Baseline")
+    ax2.legend(loc='center left', bbox_to_anchor=(1, .5), labels=["Test Data","Training Data","Baseline Fitness"])
+    ax2.set_xlabel('Generation')
+    ax2.set_ylabel('Peak Fitness')
+
     plt.xticks(np.arange(0, max(data1.Generation) + 1, 5))
-    plt.ylim([0,30])
     plt.gcf().set_facecolor('white')  # Change plot border background color
 
 
-def plotPeakFitness(GA_df1, GA_df2):
-    import matplotlib.pyplot as plt
-    import numpy as np
-    data1 = parameterDF(GA_df1)
-    data2 = parameterDF(GA_df2)
-    # Peak Fitness plot
-    fig, ax2 = plt.subplots(nrows=1, ncols=1, sharey=True)
-    ## Subset 1
-    y1 = data1.groupby('Generation')["Fitness"].max()
-    x = range(1, len(y1)+1)
-    ## Subset 2
-    y2 = data2.groupby('Generation')["Fitness"].max()
-    ## Randomized Baseline
-    y3 = data1.groupby('Generation')["baselineFitness"].max()
+def estimateParameterCombinations():
+    TF_sort = 4; TF_species = 3; Top_TFs = 4
+    PPI_pathLength = 2; Min_len = 4; Max_len = 4; Max_PPIsize = 4
+    KIN_sort = 4
+    PPI_dbs = ["BIND", "BIOGRID", "BIOCARTA",  "DIP", "FIGEYS", "HPRD", "INNATEDB", "INTACT", "KEGG", \
+                     "MINT", "MIPS", "PDZBASE", "PPID", "PREDICTEDPPI", "SNAVI", "STELZL", "VIDAL", "HUMAP", "IREF", "BIOPLEX"]
+    PPI_combinations = 2**len(PPI_dbs)-1
+    TF_combinations = 2**10
+    KIN_combinations = 2**10
+    totalCombinations = TF_sort * TF_species * Top_TFs * PPI_pathLength * Min_len * Max_len * Max_PPIsize * KIN_sort * PPI_combinations * TF_combinations * KIN_combinations
+    len(str(totalCombinations))
+    from decimal import Decimal
+    print( '%.2E' % Decimal(totalCombinations) )
+
+def checkPredictedKinaseFreq(GA_df):
+    from collections import Counter
+    import pandas as pd
+    # Target Kinases
+    TKs = GA_df.iloc[0,]['targetKinases']
+    TKdf = pd.DataFrame(Counter(TKs.split(",")).most_common(),columns=["Gene","TKcount"])
+    TKdf["TKpercent"] = TKdf['TKcount']/TKdf['TKcount'].sum()*100
+    # Predicted Kinases
+    allPKs=[]
+    for i,row in GA_df.iterrows():
+        PKs = row['predictedKinases'].split(",")
+        for pk in PKs:
+            allPKs.append(pk)
+    PKdf = pd.DataFrame( Counter(allPKs).most_common(), columns=["Gene", "PKcount"])
+    PKdf["PKpercent"] =  PKdf['PKcount'] / PKdf['PKcount'].sum() * 100
+    # Merge the DFs
+    mergedDF = pd.merge(TKdf, PKdf, on='Gene').fillna(0)[['Gene','TKpercent','PKpercent']]
     # Plot
-    ax2.errorbar(x, y1, color='c', marker='o', capsize=2, label="Training Data")
-    ax2.errorbar(x, y2, color='g', marker='s', capsize=2, label="Test Data")
-    ax2.errorbar(x, y3, linestyle="--", color='r', marker='x',capsize=2, label="Randomized Baseline")
-    ax2.legend(loc='lower right', borderaxespad=2)
-    plt.xlabel('Generation')
-    plt.ylabel('Peak Fitness')
-    plt.ylim([0,30])
-    plt.xticks(np.arange(0, max(x) + 1, 5))
-    plt.gcf().set_facecolor('white')  # Change plot border background color
+    import seaborn as sns
+    melted_df = pd.melt(mergedDF, id_vars='Gene', var_name='kinaseCategory', value_name='Percent')
+    ## Line plot
+    lp = sns.pointplot(data=melted_df, x="Gene", y="Percent", hue="kinaseCategory",
+              palette={"TKpercent": "c", "PKpercent": "m"}, markers=["^", "o"], linestyles=["-", "--"], labels=["targetKinase", "predictedKinases"])
+    lp.set_xticklabels(g.get_xticklabels(), rotation=45, fontsize=8)
+    ## Barplot
+    bp = sns.factorplot(x="Gene", y="Percent", hue="kinaseCategory", data=melted_df, kind="bar", palette={"TKpercent": "c", "PKpercent": "m"})
+    bp.set_xticklabels(rotation=30, fontsize=8)
+    ## Stacked barplot
+    melted_df.plot(kind='bar', stacked=True)
+
+
+
+def predictedKinaseRanks(GA_df):
+    import pandas as pd
+    geneList=[]; rankList=[]
+    #entryCount=0
+    for I,row in GA_df.iterrows():
+        eachExperiment = row['predictedKinases'].split(';')
+        for experiment in eachExperiment:
+            experimentSplit = experiment.split(",")
+            for i,gene in enumerate(experimentSplit):
+                geneList.append(gene)
+                rankList.append(i+1)
+                #rankDF.loc[entryCount] = [gene, i+1]
+                #entryCount+=1
+    import numpy as np
+    rankDF = pd.DataFrame(np.column_stack([geneList,rankList]), columns=['Gene','Rank'])
+    rankDF['Rank'] = pd.to_numeric(rankDF.Rank)
+    meanRankDF = rankDF.groupby('Gene').mean()
+    meanRankDF['std'] = rankDF.groupby('Gene')['Rank'].std().fillna(0)
+    meanRankDF['count'] = rankDF.groupby('Gene').count()
+    ## Calculate correction factor for each gene
+    mean_std = meanRankDF['Rank']-meanRankDF['std']
+    normalized = (mean_std- min(mean_std)) / (max(mean_std) - min(mean_std))
+    meanRankDF['correctionFactor'] = 1-normalized
+    meanRankDF = meanRankDF[meanRankDF.index!='']
+    meanRankDF.to_csv("Validation/predictedKinaseCorrectionFactors.csv")
+    return meanRankDF
+
 

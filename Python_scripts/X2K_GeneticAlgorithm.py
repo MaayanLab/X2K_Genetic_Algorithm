@@ -27,8 +27,7 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
     import pandas as pd; import numpy as np
     fitDF=pd.DataFrame(columns=allDataDF.columns)
     for i,indiv in enumerate(population):
-        print()
-        print("****** Generation "+str(genCount)+"  ::  Individual " + str(i+1) + " ******")
+        print("\n****** Generation "+str(genCount)+"  ::  Individual " + str(i+1) + " ******")
         # Delete .DS_Store files
         import os
         for root, dirs, files in os.walk(os.getcwd()):
@@ -39,13 +38,14 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
             new_fitness = sum(map(int, indiv))  # Test fitness
             print('Fake fitness= ' + str(new_fitness))
             newBinary = indiv
-            fitDF = fitDF.append(pd.DataFrame(np.column_stack([genCount,indiv,newBinary,fitnessMethod,new_fitness,"NA","NA","NA","NA","NA"]), columns=allDataDF.columns))
+            fitDF = fitDF.append(pd.DataFrame(np.column_stack([genCount,indiv,newBinary,fitnessMethod,new_fitness,"NA","NA","NA","NA","NA","NA","NA"]), columns=allDataDF.columns))
         else:
             # Calculate fitness (ONLY if it hasn't been previously calculated)
             if indiv not in allDataDF.newBinary.tolist():
-                new_fitness, PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness = X2K_fitness(indiv,fitnessMethod)
+                new_fitness, PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness, TKs, PKs = X2K_fitness(indiv,fitnessMethod)
+                # Make new Dataframe
                 fitDF = fitDF.append( pd.DataFrame(np.column_stack([genCount, indiv, newBinary,fitnessMethod, new_fitness, baselineFitness, \
-                                                                    PPI_size, chea_parameters, g2n_string, kea_string]), columns=allDataDF.columns) )
+                                                                    PPI_size, chea_parameters, g2n_string, kea_string, TKs, PKs]), columns=allDataDF.columns) )
                 print("PPI Size = " +str(PPI_size))
             else:
                 newBinary = indiv
@@ -62,7 +62,7 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
     fitDF['baselineFitness'] = pd.to_numeric(fitDF['baselineFitness'], errors='ignore')
     fitDF['PPI_size'] = pd.to_numeric(fitDF['PPI_size'], errors='ignore')
     return fitDF
-# allDataDF = pd.DataFrame(columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters'])
+# allDataDF = pd.DataFrame(columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
 # fitDF = calculateFitness(population, allDataDF)
 
 
@@ -203,9 +203,10 @@ def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, 
          'crossoverPoints', 'crossoverLocations','breedingVariation', 'mutationRate', 'includeFittestParents', 'fitnessMethod','selectionMethod', 'setInitialPopulation'], \
         [initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints,crossoverLocations,\
          breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod, setInitialPopulation]))
+    # Store all of the relevant results in one dataframe
     import pandas as pd
     allDataDF = pd.DataFrame(columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
-                                      'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters'])
+                                      'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases','predictedKinases'])
     print("Creating initial population...")
     if setInitialPopulation==False:
         population = createPopulation(initialPopSize, binaryStringLength)
@@ -230,8 +231,9 @@ def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, 
         genCount += 1
     return allDataDF, GAsettings
 
+
 GA_df, GAsettings = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=8, crossoverPoints=6, crossoverLocations='random',\
-                       breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='modifiedRBO', selectionMethod='mixedTournament', setInitialPopulation=False)
+                       breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='rankCorrectedTAO', selectionMethod='mixedTournament', setInitialPopulation=False)
                         #targetAdjustedOverlap
 
 
@@ -246,22 +248,26 @@ files = os.listdir(dir_name)
 for item in files:
     if item.endswith(".txt") or item.endswith(".gmt"):
         os.remove(os.path.join(dir_name, item))
-## Replace it with subset 1
-### Dataset.A: GEO KINASE PERTURBATION DATA
+    ## Replace it with subset 1
+    ### Dataset.A: GEO KINASE PERTURBATION DATA
 copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
 # Down genes only (performs MUCH better than up genes, which consistently return 0% of all kinase perturbation experiments in GEO)
 #copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt", "data/testgmt/Kinase_Perturbations_from_GEO_up.gmt")
-### Dataset.B: LINCS L1000 + DrugRepurposingHub
+    ### Dataset.B: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET1.80per.txt")
-### Dataset.C: LINCS L1000 + DrugRepurposingHub
+    ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET1.txt")
-# COMBINED dataset: GEO-KinasePert + L1000-DRH
+    ### Dataset D: LINCS L1000 + Kinase Perturbations
+#copyfile("LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_SUBSET1.80per.txt","data/testgmt/LINCS_L1000_Kinase_Perturbations_SUBSET1.80per.txt")
+    ### COMBINED dataset: GEO-KinasePert + L1000-DRH
 #copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET1-80per.txt")
+    ### Dataset X: Randomly chosen sets of DEGS:
+#copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt", "data/testgmt/allKinases_randomGenes.gmt")
 
 ## Run GA with Subset1
 Subset1_df, GAsettings = GAfunction(initialPopSize=100, binaryStringLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90,\
                                     crossoverPoints=5, crossoverLocations='random', breedingVariation=0, mutationRate=0.01, includeFittestParents=10, \
-                                    fitnessMethod='targetAdjustedOverlap', selectionMethod='mixedTournament') # modifiedRBO
+                                    fitnessMethod='targetAdjustedOverlap_outputLengthCorrection', selectionMethod='mixedTournament') # modifiedRBO, targetAdjustedOverlap, rankCorrectedTAO
 
 
 
@@ -273,17 +279,23 @@ from shutil import copyfile
 dir_name = "data/testgmt/"
 files = os.listdir(dir_name)
 for item in files:
-    if item.endswith(".txt"):
+    if item.endswith(".txt") or item.endswith(".gmt"):
         os.remove(os.path.join(dir_name, item))
-## Replace it with subset 2
-### Dataset.A: GEO KINASE PERTURBATION DATA
+    ## Replace it with subset 2
+    ### Dataset.A: GEO KINASE PERTURBATION DATA
 copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
-### Dataset.B: LINCS L1000 + DrugRepurposingHub
+    ### Dataset.B: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt", "data/testgmt/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt")
-### Dataset.C: LINCS L1000 + DrugRepurposingHub
+    ### Dataset.C: LINCS L1000 + DrugRepurposingHub
 #copyfile("Validation/Perturbation_Data/LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt", "data/testgmt/LINCS-L1000_KINOMEscan_SUBSET2.txt")
-# COMBINED dataset: GEO-KinasePert + L1000-DRH
+    ### Dataset D: LINCS L1000 + Kinase Perturbations
+#copyfile("LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_SUBSET2.20per.txt","data/testgmt/LINCS_L1000_Kinase_Perturbations_SUBSET2.20per.txt")
+    ### COMBINED dataset: GEO-KinasePert + L1000-DRH
 #copyfile("Validation/Perturbation_Data/Combined/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt", "data/testgmt/GEO-KinasePert_L1000-DRH_SUBSET2-20per.txt")
+    ### Dataset X: Randomly chosen sets of DEGS:
+#copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes2.gmt", "data/testgmt/allKinases_randomGenes2.gmt")
+
+
 
 ## Run GA with Subset2
 # xxxxxxxx MAKE SURE YOU SHUT DOWN CHEA FIRST OR ELSE IT WON"T PRE-LOAD THE NEW TESTGMT!!!!!!!! xxxxxxxx
@@ -298,15 +310,35 @@ Subset2_df = runSubset2(Subset1_df, GAsettings)
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GAresults_GEO_Tournament.TAO.randCrossover.npy'
+GA_output_name = 'GAresults_GEO-PKlengthCorrected.npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 np.save(results_dir+GA_output_name, [Subset1_df, Subset2_df, GAsettings])
 
+
 # # Load
 # import numpy as np
 # results_file = 'GA_Results/'+GA_output_name
 # np.load(results_file)
 #
+
+
+import os
+from shutil import copyfile
+dir_name = "data/testgmt/"
+files = os.listdir(dir_name)
+for item in files:
+    if item.endswith(".txt"):
+        os.remove(os.path.join(dir_name, item))
+copyfile("X2K_Genetic_Algorithm/Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per-SCRAMBLED.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.80per-SCRAMBLED.txt")
+## Run GA with scrambled-DEGs in testGMT:
+def runSubset2(Subset1_df, GAsettings):
+    import pandas as pd
+    allDataDF2=pd.DataFrame(columns=Subset1_df.columns)
+    for gen in Subset1_df.Generation.unique().tolist():
+        genPop = Subset1_df[Subset1_df.Generation==gen].newBinary.values.tolist()
+        allDataDF2 = allDataDF2.append( calculateFitness(genPop, genCount=gen, fitnessMethod=GAsettings['fitnessMethod'], allDataDF=allDataDF2))
+    return allDataDF2
+Subset2_df = runSubset2(Subset1_df, GAsettings)

@@ -91,13 +91,13 @@ split_testgmt(testPercent=80, \
 # Split LINCS L1000 chem pert data and then combine up/dn files
 split_testgmt(testPercent=80,\
               input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
-              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
-              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET2.txt",\
               up_dn="up")
 split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInihibitors.txt",\
-              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
-              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInhibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET2.txt",\
               up_dn="dn", writeType="a")
 
 
@@ -109,8 +109,9 @@ def reduced_split_testgmt(testPercent, input, output1, output2, writeType="w", u
         open(directory + "Validation/Perturbation_Data/"+output1, writeType) as subset1,\
         open(directory + "Validation/Perturbation_Data/"+output2, writeType) as subset2:
         testgmtLines = testgmt.readlines()
-        #division = round(len(testgmtLines)*testPercent/100)
-        division = round((570*.80)/2)
+        ## Can put a cap on dataset to limit computational load
+        division = round(len(testgmtLines)*testPercent/100)
+        #division = round((570*.80)/2)
         count = 1
 
         for line in testgmtLines:
@@ -124,32 +125,42 @@ def reduced_split_testgmt(testPercent, input, output1, output2, writeType="w", u
                 subset2.write("\t".join(newLine))
             count += 1
 
-directory = "/home/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/" # Change to your directory
+#directory = "/home/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/" # Change to your directory
 
 ## LINCS L1000 + DRH
 reduced_split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInihibitors.txt",\
-              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
-              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInhibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET2.txt",\
               up_dn="up")
 reduced_split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
-              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET1.txt",\
-              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInihibitors_SUBSET2.txt",\
+              input="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInhibitors.txt",\
+              output1="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET1.txt",\
+              output2="LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinaseInhibitors_SUBSET2.txt",\
               up_dn="dn", writeType="a")
 
 ## LINCS L1000 + KinomeScan
 reduced_split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.DN_filtered.txt",\
+              input="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.UP_filtered.txt",\
               output1="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt",\
               output2="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt",\
               up_dn="up")
 reduced_split_testgmt(testPercent=80,\
-              input="LINCS_L1000_Chem/KinomeScan_filtered/Chem_up_DRH.kinaseInihibitors.txt",\
+              input="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan.DN_filtered.txt",\
               output1="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET1.txt",\
               output2="LINCS_L1000_Chem/KinomeScan_filtered/LINCS-L1000_KINOMEscan_SUBSET2.txt",\
               up_dn="dn", writeType="a")
-
+## LINCS L1000 Kinase Perturbations ****
+reduced_split_testgmt(testPercent=80,\
+              input="LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_down.txt",\
+              output1="LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_SUBSET1.80per.txt",\
+              output2="LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_SUBSET2.20per.txt",\
+              up_dn="up")
+reduced_split_testgmt(testPercent=80,\
+              input="LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_up.txt",\
+              output1="LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_SUBSET1.80per.txt",\
+              output2="LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_SUBSET2.20per.txt",\
+              up_dn="dn", writeType="a")
 
 
 Dir = "X2K_Genetic_Algorithm/Validation/Perturbation_Data/" # Change to your directory
@@ -186,3 +197,153 @@ with open(Dir+"LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_combo_DRH.kinas
         newName = "L1000-DrugRepurposingHub_" + "-".join(name[0:3] + [name[-1]]) + "_" + name[3]
         newLine = newName+"\t"+"\t".join(lineSp[1:])
         sub2.write(newLine)
+
+
+## ------- Scramble DGEs in in testGMT to make a different randomized baseline: ------- ##
+with open("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt") as testGMT,\
+        open("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per-SCRAMBLED.txt","w") as scrambled:
+    GMTlines = testGMT.readlines()
+    DEGlist=[]; lenList=[]
+    for line in GMTlines:
+        DEGs = line.split("\t")[2:]
+        DEGs[-1] = DEGs[-1].strip("\n")
+        for deg in DEGs:
+            DEGlist.append( deg )
+        lenList.append( len(DEGs) )
+
+    from random import shuffle
+    shuffle(DEGlist)
+
+    import numpy as np
+    for i,line in enumerate(GMTlines):
+        print(line)
+        spltLine = line.split("\t")
+        newDEGs = np.random.choice(DEGlist, size=lenList[i], replace=False)
+        scrambled.write(spltLine[0]+"\t"+spltLine[1]+"\t"+"\t".join(newDEGs)+"\n")
+
+
+## ----- Check the frequency of each Kinase in the testGMT ----- ##
+with open("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt") as GEOgmt:
+    import pandas as pd
+    def getKinaseGroupAndFamily(kinaseList):
+        geneSyn = pd.read_table("../X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None,
+                                names=["Gene", "GeneSyn"])
+        kinaseGroups = pd.read_csv("../X2K_Databases/General_Resources/Kinase.com/Kinase_Groups_&_Families.csv")
+        kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
+        for k in kinaseList:
+            print(k)
+            syns = [k]
+            if k in list(geneSyn.Gene):
+                newSyns = list(geneSyn[geneSyn.Gene == k].GeneSyn.unique())
+                for s in newSyns:
+                    syns.append(s)
+            overlap = list(set(syns).intersection(set(kgroupDict.keys())))
+            if len(overlap) > 0:
+                results = kgroupDict[overlap[0]]
+            else:
+                results = ["NA", "NA"]
+        return results
+
+
+    import collections
+    gmt = GEOgmt.readlines()
+    kinaseList=[]
+    for line in gmt:
+        kinaseList.append( line.split('\t')[0].split("_")[0] )
+    # Kinase-level
+    x = collections.Counter(kinaseList)
+    x.most_common()
+    # Get Group, Family
+    GROUPS=[]; FAMILIES=[]
+    for ki in kinaseList:
+        group, family = getKinaseGroupAndFamily([ki])
+        GROUPS.append(group); FAMILIES.append(family)
+    # Group-level
+    collections.Counter(GROUPS).most_common()
+    # Family-level
+    collections.Counter(FAMILIES).most_common()
+
+
+## ---- Filter GMT to only include one perturbation of each kinase ---- ##
+with open("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt") as GEOgmt,\
+        open("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per-UniqueKinases.txt","w") as filtGEOgmt:
+    GEOlines = GEOgmt.readlines()
+    kinaseRecorder=[]
+    for line in GEOlines:
+        kinase = line.split("")
+
+
+directory = "/Users/Schilder/Desktop/X2K_Genetic_Algorithm/"
+
+# Mix up and down, then write to new file, then get top n lines (to limit computational load on GA)
+def uniqueKinasesGMT(testPercent, input, output1, output2, writeType="w", up_dn="dn"):
+    with open(directory + "Validation/Perturbation_Data/"+input) as testgmt,\
+        open(directory + "Validation/Perturbation_Data/"+output1, writeType) as subset1,\
+        open(directory + "Validation/Perturbation_Data/"+output2, writeType) as subset2:
+        testgmtLines = testgmt.readlines()
+        #division = round(len(testgmtLines)*testPercent/100)
+        division = round((570*.80)/2)
+        count = 1
+        kinaseRecorder_dn=[]; kinaseRecorder_up=[]
+
+        for line in testgmtLines:
+            kinase = line.split("")
+            if count <= division and kinase not in kinaseRecorder_dn:
+                newLine = line.split("\t")
+                newLine[0] = newLine[0]+"_"+up_dn
+                subset1.write("\t".join(newLine))
+            if count > division:
+                newLine = line.split("\t")
+                newLine[0] = newLine[0]+"_"+up_dn
+                subset2.write("\t".join(newLine))
+            count += 1
+
+# Make a fake GMT with random genes
+## Matched to GEO dataset
+def randomDEGsGMT(testGMT):
+    randomGMT = testGMT.strip(".txt")+"-RandomDEGs.txt"
+    with open(testGMT) as GEO80, open(randomGMT, "w") as GEO80_random:
+        import pandas as pd
+        from random import choice
+        allGenes = pd.read_table("../X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)[0].str.strip().tolist()
+        geo80 = GEO80.readlines()
+        for line in geo80:
+            splitLine = line.split("\t")
+            DEGs = splitLine[2:]
+            randomDEGs=[]
+            for x in range(len(DEGs)):
+                randomDEGs.append( choice(allGenes) )
+            GEO80_random.write("\t".join([splitLine[0]]+randomDEGs)+"\n")
+randomDEGsGMT("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
+randomDEGsGMT("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
+
+## One row for each kinase in the kinome, with 300 DEGs each
+def randomKinaseGMT(numGenes):
+    import pandas as pd
+    from random import choice
+    kinases = pd.read_table("data/KEA/kea_ranks.txt", header=None)[0].tolist()
+    allGenes = pd.read_table("../X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)[0].str.strip().tolist()
+    with open("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt","w") as GMT:
+        for k in kinases:
+            randomDEGs=[]
+            for x in range(numGenes):
+                randomDEGs.append(str(choice(allGenes)).upper())
+            GMT.write(k+"_allKinases-randomGenes"+"\t\t"+"\t".join(randomDEGs)+"\n")
+randomKinaseGMT(300)
+
+
+### ****** Run X2K on 1000 random GMTs to get the null rank distribution of each gene ****** ###
+def randomX2Kruns(selectedBinary):
+    try:
+        del calculateFitness
+    except NameError:
+        pass
+    from Python_scripts.X2K_GeneticAlgorithm import calculateFitness
+    allDataDF = pd.DataFrame(
+        columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
+                 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
+    for i in range(1000):
+        randomKinaseGMT(300)
+        fitDF = calculateFitness(selectedBinary, allDataDF)
+        allDataDF = allDataDF.append(fitDF)
+    return allDataDF, selectedBinary
