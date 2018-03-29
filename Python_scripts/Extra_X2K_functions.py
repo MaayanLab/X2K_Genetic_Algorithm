@@ -351,16 +351,16 @@ def plotFitness(GA_df1, GA_df2, barsOrFill):
     tsplot(ax1, data1, measure="Fitness", linestyle="-", color='c', marker='o', barsOrFill=errorSelection)
     tsplot(ax1, data2, measure="Fitness", linestyle="-", color='g', marker='s', barsOrFill=errorSelection)
     tsplot(ax1, data1, measure="baselineFitness", linestyle="--", color='r', marker='x', barsOrFill=errorSelection)
-    ax1.legend(loc='center left', bbox_to_anchor=(1, .5), labels=["Test Data","Training Data","Baseline Fitness"])
+    ax1.legend(loc='center left', bbox_to_anchor=(1, .5), labels=["Training Data","Test Data","Baseline Fitness"])
     ax1.set_ylabel('Average Fitness')
 
     # Peak fitness
     import pandas as pd
     x = pd.to_numeric(data1['Generation'].unique()).tolist()
-    ax2.errorbar(x, data1.groupby('Generation')["Fitness"].max(), color='c', marker='o', capsize=2, label="Training Data")
-    ax2.errorbar(x, data2.groupby('Generation')["Fitness"].max(), color='g', marker='s', capsize=2, label="Test Data")
-    ax2.errorbar(x, data1.groupby('Generation')["baselineFitness"].max(), linestyle="--", color='r', marker='x',capsize=2, label="Randomized Baseline")
-    ax2.legend(loc='center left', bbox_to_anchor=(1, .5), labels=["Test Data","Training Data","Baseline Fitness"])
+    ax2.errorbar(x, data1.groupby('Generation')["Fitness"].max(), color='c', marker='o', label="Training Data")
+    ax2.errorbar(x, data2.groupby('Generation')["Fitness"].max(), color='g', marker='s', label="Test Data")
+    ax2.errorbar(x, data1.groupby('Generation')["baselineFitness"].max(), linestyle="--", color='r', marker='x', label="Randomized Baseline")
+    ax2.legend(loc='center left', bbox_to_anchor=(1, .5), labels=["Training Data","Test Data","Baseline Fitness"])
     ax2.set_xlabel('Generation')
     ax2.set_ylabel('Peak Fitness')
 
@@ -440,5 +440,10 @@ def predictedKinaseRanks(GA_df):
     meanRankDF = meanRankDF[meanRankDF.index!='']
     meanRankDF.to_csv("Validation/predictedKinaseCorrectionFactors.csv")
     return meanRankDF
+
+
+def getFittestIndividual(GA_df):
+    return GA_df.sort_values(by=['Fitness'], ascending=False).iloc[0].newBinary
+
 
 

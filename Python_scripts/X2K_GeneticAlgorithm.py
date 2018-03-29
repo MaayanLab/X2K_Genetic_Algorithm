@@ -239,15 +239,15 @@ GA_df, GAsettings = GAfunction(initialPopSize=10, binaryStringLength=43, numberO
 
 # ***************** SUBSET 1 *****************
 # Put Subset1 GMT file into testgmt folder
-
-import os
+def clearTestGMT():
+    import os
+    dir_name = "data/testgmt/"
+    files = os.listdir(dir_name)
+    for item in files:
+        if item.endswith(".txt") or item.endswith(".gmt"):
+            os.remove(os.path.join(dir_name, item))
+clearTestGMT()
 from shutil import copyfile
-## Delete whatever file is in testgmt
-dir_name = "data/testgmt/"
-files = os.listdir(dir_name)
-for item in files:
-    if item.endswith(".txt") or item.endswith(".gmt"):
-        os.remove(os.path.join(dir_name, item))
     ## Replace it with subset 1
     ### Dataset.A: GEO KINASE PERTURBATION DATA
 copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
@@ -272,15 +272,9 @@ Subset1_df, GAsettings = GAfunction(initialPopSize=100, binaryStringLength=43, n
 
 
 # ***************** SUBSET 2 *****************
-# Put Subset2 GMT file into testgmt folder
-## Delete whatever file is in testgmt
-import os
+clearTestGMT()
+
 from shutil import copyfile
-dir_name = "data/testgmt/"
-files = os.listdir(dir_name)
-for item in files:
-    if item.endswith(".txt") or item.endswith(".gmt"):
-        os.remove(os.path.join(dir_name, item))
     ## Replace it with subset 2
     ### Dataset.A: GEO KINASE PERTURBATION DATA
 copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt", "data/testgmt/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
