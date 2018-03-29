@@ -6,7 +6,7 @@ import os
 
 os.getcwd()
 os.chdir("../")
-
+import pandas as pd
 # Progress bar for for loop
 def percentComplete(loopLength, iteration):
     percent = round((iteration + 1) / loopLength * 100, 2)
@@ -791,7 +791,7 @@ iPTMnet_SIG.to_csv("X2K_Databases/KINASE/iPTMnet/Processing/iPTMnet-2018_Mouse-H
 
 # Make GMT for KINASES in iPTMnet
 kinaseScores = iPTMnet_SIG[iPTMnet_SIG[0].isin(KINASES)]
-kinaseScores.columns = ['enzymeGenes','NA','NA','NA','NA','substrateGenes','NA','NA', 'KinaseGroup', 'KinaseFamily', 'Species', 'PMIDS', 'Scores']
+kinaseScores.columns = ['enzymeGenes','NA','NA','NA','NA','substrateGenes','NA','NA', 'KinaseGroup', 'KinaseFamily', 'Species', 'Scores', 'PMIDS']
 
 with open("X2K_Databases/KINASE/iPTMnet/iPTMnet-2018_Mouse-Human_KINASES.gmt","w") as GMT:
     uniqueKinases = kinaseScores['enzymeGenes'].unique().tolist()
@@ -800,7 +800,7 @@ with open("X2K_Databases/KINASE/iPTMnet/iPTMnet-2018_Mouse-Human_KINASES.gmt","w
         kiSub = kinaseScores[kinaseScores['enzymeGenes'] == ki]
         for species in list(kiSub['Species'].unique()):
             spSub = kiSub[kiSub['Species']==species]
-            interactors = spSub.sort_values(by=['substrateGenes'], ascending=False)['substrateGenes'].values
+            interactors = spSub.sort_values(by=['Scores'], ascending=False)['substrateGenes'].values
             newName = "iPTMnet-"+"KinaseGroup:"+str(kiSub['KinaseGroup'].unique()[0])+"-KinaseFamily:"+str(kiSub['KinaseFamily'].unique()[0])+"_"+str(species)
             if len(interactors)>=1:
                 GMT.write(ki +"\t"+ newName+"\t"+"\t".join(interactors)+"\n")
@@ -821,7 +821,7 @@ with open("X2K_Databases/KINASE/PhosphositePlus/PhosphositePlus-02-2018_Mouse-Hu
         Group, Family = getKinaseGroupAndFamily([k])
         for species in list(phosSub.KIN_ORGANISM.unique()):
             Species = species[0].upper()+species[1:]
-            phosSpec = phosSub[(phosSub.KIN_ORGANISM == species) & (phosSub.KIN_ORGANISM == species)]
+            phosSpec = phosSub[(phosSub.KIN_ORGANISM == species) & (phosSub.SUB_ORGANISM == species)]
             substrates = list(set(phosSub.SUB_GENE.values))
             cleanSubstrates = [x for x in substrates if str(x) != 'nan']
             cleanSubstrates = [x.upper() for x in cleanSubstrates]

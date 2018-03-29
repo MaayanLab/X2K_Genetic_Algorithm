@@ -18,9 +18,9 @@
 # letterString = makeString(43)
 
 
-#directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
+directory = "/Users/schilder/Desktop/X2K_Genetic_Algorithm/data/" # Change to your directory
 #directory='/Users/maayanlab/PycharmProjects/X2K_Genetic_Algorithm/data/'
-directory='/Users/maayanlab/Desktop/X2K_Genetic_Algorithm/data/'
+#directory='/Users/maayanlab/Desktop/X2K_Genetic_Algorithm/data/'
 
 
 # binaryString = '0001011000100101100010011100011101100101011'
@@ -319,23 +319,24 @@ def X2K_fitness(binaryString, fitnessMethod):
             dataType = 'GEO-L1000'
         if gmtName[0].startswith('Kinase_Perturbations_from_GEO'):
             dataType = 'GEO'
-        elif gmtName[0].startswith('Chem_combo_DRH'):
+        if gmtName[0].startswith('Chem_combo_DRH'):
             dataType = 'L1000'
         else:
-            print("Couldn't detect Validation Data type.")
+            dataType='GEO'
+            print("Couldn't detect Validation Data type. Defaulting to GEO")
         return(dataType)
     dataType = detectValidationData()
 
     def parseTargetsPredicted(line, dataType):
         if dataType == 'GEO':
             kinaseTargets = line.split(",")[0].split("_")[0]
-            predictedKinases = line.split(",")[1:]
+            predictedKinases = line.split(",")[2:]
         elif dataType == 'L1000':
             kinaseTargets = line.split(",")[0].split("_")[3].strip("[").strip("]").split("|")
-            predictedKinases = line.split(",")[1:]
+            predictedKinases = line.split(",")[2:]
         elif dataType == 'GEO-L1000':
             kinaseTargets = line.split(",")[0].split("_")[-1].strip("[").strip("]").split("|")
-            predictedKinases = line.split(",")[1:]
+            predictedKinases = line.split(",")[2:]
         else:
             print("Unrecognized Validation Data Structure")
         # If it's just a string, convert to list
@@ -351,17 +352,26 @@ def X2K_fitness(binaryString, fitnessMethod):
         return( [kinaseTargets, predictedKinases] )
 
     def randomizedBaselineFitness(KEAlines, fitnessMETHOD, dataType):
-        from random import shuffle
-        Names = []; KinasePredictions = []; shuffled_KEAlines = []
+        from random import choice
+        shuffled_KEAlines = []
+        """
+        Names = []; KinasePredictions = []; 
         for line in KEAlines:
             lineSp = line.split(',')
             Names.append(lineSp[0])
             KinasePredictions.append(lineSp[1:])
         shuffle(Names)
-        for i, name in enumerate(Names):
-            shuffled_KEAlines.append(name + "," + ",".join(KinasePredictions[i]))
+        """
+        # Get list of ALL kinases
+        import pandas as pd
+        KINASES = pd.read_table("../X2K_Databases/General_Resources/Kinase_Families_Maxime/kinases_fam.tsv",header=None, names=["Name", "Group", "Family"], index_col=False)['Name'].tolist()
+        for line in KEAlines:
+            info = line.split(',')[0].split("_")[1:]
+            newKinase = choice(KINASES) # Randomly select any kinase
+            KinasePredictions = line.split(",")[1:]
+            shuffled_KEAlines.append(newKinase+"_"+"_".join(info)+ "," + ",".join(KinasePredictions))
         # Calculate randomized baseline fitness
-        baselineFitness = fitnessMETHOD(shuffled_KEAlines, dataType)
+        baselineFitness, xTKs, xPKs = fitnessMETHOD(shuffled_KEAlines, dataType)
         return baselineFitness
 
 
@@ -371,39 +381,62 @@ def X2K_fitness(binaryString, fitnessMethod):
     ## Percentage of experiments whose target kinase(s) were in the predicted kinases.
     # Makes the most sense when there's only one target, so it's consistent across experiments.
     def targetAdjustedOverlap(KEAlines, dataType):
-        scaledOverlapScores=[]
+        scaledOverlapScores=[]; TKs=[]; PKs=[]
         for line in KEAlines:
             targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
             # Create lists of recovered and missed kinases
             overlappingKinases = list( set(targetKinases) & set(predictedKinases) )
-            scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases)*100 )
+            scaledOverlapScores.append( len(overlappingKinases) / len(targetKinases) *100 )
         # Calculate individual's  fitness score
         if scaledOverlapScores!=[]:
             fitness_score = sum(scaledOverlapScores) / len(scaledOverlapScores)
         else:
             fitness_score = 0.0
-        return fitness_score
+        return fitness_score, TKs, PKs
+
+    def targetAdjustedOverlap_outputLengthCorrection(KEAlines, dataType):
+        scaledOverlapScores = [];
+        TKs = [];
+        PKs = []
+        for line in KEAlines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
+            # Create lists of recovered and missed kinases
+            overlappingKinases = list(set(targetKinases) & set(predictedKinases))
+            if len(overlappingKinases)>0:
+                scaledOverlapScores.append(len(overlappingKinases) / len(targetKinases) / len(predictedKinases) * 100)
+            else:
+                scaledOverlapScores.append(0.0)
+        # Calculate individual's  fitness score
+        if scaledOverlapScores != []:
+            fitness_score = sum(scaledOverlapScores) / len(scaledOverlapScores)
+        else:
+            fitness_score = 0.0
+        return fitness_score, TKs, PKs
 
     def WilcoxonRankSum(KEAlines, dataType):
         # Assumes BOTH lists are ordered (would work for KINOMEscan)
         import scipy.stats as ss
         import numpy as np
-        stats = []
+        stats=[]; TKs=[]; PKs=[]
         for line in KEAlines:
             targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
             wrm = ss.ranksums(targetKinases, predictedKinases)
             if np.isnan(wrm.statistic):
                 stats.append(0)
             else:
                 stats.append(wrm.statistic)
         fitness_score = np.nanmean(stats)
-        return fitness_score
+        return fitness_score, TKs, PKs
 
     def rankBiasedOverlap(KEALines, dataType):
         from Python_scripts.rbo import rbo
-        rboScores = []
+        rboScores = []; TKs=[]; PKs=[]
         for line in KEALines:
             targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
             # As long as the kinase list is not blank, get rid of \n in last item
             if predictedKinases != []:
                 predictedKinases[-1] = predictedKinases[-1].strip()
@@ -415,7 +448,7 @@ def X2K_fitness(binaryString, fitnessMethod):
                 rboScores.append(0)
             # Get the average RBO score
         fitness_score = sum(rboScores) / len(rboScores)
-        return fitness_score
+        return fitness_score, TKs, PKs
 
     # [4] Modified RankBiasedOverlap
     ## RBO normally assumes both lists are ranked. But in some cases, they're not.
@@ -423,28 +456,37 @@ def X2K_fitness(binaryString, fitnessMethod):
     ## Developed by Brian M. Schilder & Moshe Silverstein
     def modifiedRBO(KEAlines, dataType):
         from Python_scripts.rboScore import getRBOScore
-        rboScores = []
+        rboScores=[]; TKs=[]; PKs=[]
         for line in KEAlines:
             targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
             # If there's any target hits in the predicted output, calculate score. Otherwise, save time by just appending a 0.0.
             if len(set(targetKinases).intersection(set(predictedKinases))) > 0:
                 rboScores.append(getRBOScore(predicted=predictedKinases, target=targetKinases))
             else:
                 rboScores.append(0.0)
         fitness_score = sum(rboScores) / len(rboScores)
-        return fitness_score
+        return fitness_score, TKs, PKs
 
-    # def rankWeightedOverlap:
-    #     for line in KEAlines:
-    #         targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
-    #         for tk in targetKinases:
-    #             if len(targetKinases)>1:
-    #                 exceptTK = set(targetKinases)-set(tk)
-    #                 subOverlap = set(tk).intersection(set(predictedKinases))
-    #             else:
-    #                 subOverlap = set(tk).intersection(set(predictedKinases))
-
-
+    def rankCorrectedTAO(KEAlines, dataType):
+        import pandas as pd
+        correctionDF = pd.read_csv("Validation/predictedKinaseCorrectionFactors.csv")
+        correctedScores = []; TKs = []; PKs = []
+        for line in KEAlines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
+            # Create lists of recovered and missed kinases
+            overlappingKinases = list(set(targetKinases) & set(predictedKinases))
+            if len(overlappingKinases)>0:
+                for hit in overlappingKinases:
+                    if hit in correctionDF['Gene'].tolist():
+                        correctedScores.append(100 * correctionDF[correctionDF['Gene'] == hit]['correctionFactor'].values[0] / len(targetKinases))
+                    else:
+                        correctedScores.append(100 / len(targetKinases)) # If there's no associated correction factor for a hit, just assume it has full weight (1.0)
+            else:
+                correctedScores.append(0)
+        fitnessScore = sum(correctedScores) / len(correctedScores)
+        return fitnessScore, TKs, PKs
 
 
     # ----------------------------- Calculate fitness -----------------------------#
@@ -452,14 +494,25 @@ def X2K_fitness(binaryString, fitnessMethod):
         print("Calculating '" + str(fitnessMethod) + "' fitness...")
         with open(directory + "output/kea_out.txt") as KEA_output:
             KEAlines = KEA_output.readlines()
-        fitnessScore = fitnessMETHOD(KEAlines, dataType)
+        fitnessScore, TKs, PKs = fitnessMETHOD(KEAlines, dataType)
         baselineFitness = randomizedBaselineFitness(KEAlines, fitnessMETHOD, dataType)
         print("Individual's fitness = " + str(fitnessScore))
         print("Baseline fitness = " + str(baselineFitness))
-        return fitnessScore, baselineFitness
-    fitnessScore, baselineFitness = calculateFitness(fitnessMETHOD=eval(fitnessMethod), dataType=dataType)
+        return fitnessScore, baselineFitness, TKs, PKs
+    fitnessScore, baselineFitness, TKs, PKs = calculateFitness(fitnessMETHOD=eval(fitnessMethod), dataType=dataType)
 
-    return fitnessScore, average_PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness
+    def nestedListToString(nestedList):
+        tmpList=[]
+        for sublist in nestedList:
+            tmpList.append(",".join(sublist))
+        return ";".join(tmpList)
+
+    return fitnessScore, average_PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness, nestedListToString(TKs), nestedListToString(PKs)
+
+
+
+
+
 
 
 
