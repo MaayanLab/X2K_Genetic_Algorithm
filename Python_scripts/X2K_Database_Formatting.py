@@ -109,7 +109,7 @@ def getKinaseGroupAndFamily(kinaseList):
 
 
 # Summary table
-def getDatasetsSummary(writeExcel=False):
+def getDatasetsSummary(dbFolderPath, dbTypes=["TF","PPI","KINASE" ], writeExcel=False):
 
     def extract_TF_KINASE_stats(dataset_path):
         with open(dataset_path) as DATA:
@@ -152,15 +152,14 @@ def getDatasetsSummary(writeExcel=False):
                 interactionsPerProtein.append(prot_sub.__len__())
             avgInteractionsPerProtein = round( sum(interactionsPerProtein) / len(interactionsPerProtein),2 )
             return totalInteractions, len(uniqueInteractions), len(uniqueProteins), avgInteractionsPerProtein
-
     # Make summary table
     import os
     import pandas as pd
     import numpy as np
-    root = "/Users/schilder/Desktop/X2K_Databases"
-    pathList = [root + "/TF", root + "/PPI", root + "/KINASE"]
+    #pathList = [root + "/KINASE"] #root + "/TF", root + "/PPI",
     TF_summaryTable = pd.DataFrame(); KINASE_summaryTable = pd.DataFrame(); PPI_summaryTable = pd.DataFrame()
-    for path in pathList:
+    for t in dbTypes:
+        path = dbFolderPath+"/"+t
         dataType = path.split("/")[-1]
         # Get list of only folders
         foldersOnly = [x for x in os.listdir(path) if os.path.isdir(os.path.join(path, x))]
@@ -190,7 +189,6 @@ def getDatasetsSummary(writeExcel=False):
                                 pd.DataFrame(np.column_stack([dataType,folder,file,totalInteractions,uniqueInteractions,uniqueProteins,avgInteractionsPerProtein]),columns=cols))
                     except:
                         print("Could not summarize:"+ os.path.join(path, folder, file))
-
     if writeExcel != False:
         print("Writing table to excel file...")
         frames = [TF_summaryTable, PPI_summaryTable, KINASE_summaryTable]
@@ -200,11 +198,11 @@ def getDatasetsSummary(writeExcel=False):
             df.to_excel(writer, 'Sheet1', startrow=start_row, index=False)
             start_row += len(df) + 1  # add a row for the column header?
         writer.save()
-
     return TF_summaryTable, KINASE_summaryTable, PPI_summaryTable
 
+TF_summaryTable, PPI_summaryTable, KINASE_summaryTable= getDatasetsSummary(dbFolderPath="/Users/schilder/Desktop/X2K_Databases", dbTypes=["KINASE"], writeExcel="../X2K_Databases/X2K_Database_Summary.xlsx")
 
-TF_summaryTable, PPI_summaryTable, KINASE_summaryTable= getDatasetsSummary(writeExcel="X2K_Databases/X2K_Database_Summary.xlsx")
+
 
 # HomoloGene
 # XXXXX DOES NOT HAVE WITHIN-SPECIES GENE SYNONYMS. USE MOSHE'S MOUSE-HUMAN HOMLOG MAPPING INSTEAD XXXXX
@@ -908,7 +906,7 @@ with open("X2K_Databases/General_Resources/KINOMEscan/KINOMEscan-01-2018_Small-M
 
 # -----------Split KEA file-----------
 
-KEA = pd.read_csv("X2K_Databases/KINASE/KEA_datasets/Processing/kinase-protein_interactions.csv", header=None, names=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
+KEA = pd.read_csv("../X2K_Databases/KINASE/KEA_datasets/Processing/kinase-protein_interactions.csv", header=None, names=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
 KEA.head()
 # Get complete list of databases used in
 ## 'SAVI' == 'SNAVI'?...
@@ -922,7 +920,7 @@ for dbs in KEA.Databases.unique():
 for db in allDbs:
     print("Processing CSV: "+db)
     newDF=pd.DataFrame(columns=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
-    newPath = "X2K_Databases/KINASE/KEA_datasets/Processing/"+db+"_UnknownSpecies_KINASES.csv"
+    newPath = "../X2K_Databases/KINASE/KEA_datasets/Processing/"+db+"_UnknownSpecies_KINASES.csv"
     for i,row in KEA.iterrows():
         if db in row.Databases.split(";"):
             newRow = row
@@ -932,8 +930,8 @@ for db in allDbs:
 ## Convert each csv to GMT
 for db in allDbs:
     print("Processing GMT: "+db)
-    path = "X2K_Databases/KINASE/KEA_datasets/Processing/" + db + "_UnknownSpecies_KINASES.csv"
-    gmtPath = "X2K_Databases/KINASE/KEA_datasets/"+db+"_UnknownSpecies_KINASES.gmt"
+    path = "../X2K_Databases/KINASE/KEA_datasets/Processing/" + db + "_UnknownSpecies_KINASES.csv"
+    gmtPath = "../X2K_Databases/KINASE/KEA_datasets/"+db+"_UnknownSpecies_KINASES.gmt"
     df = pd.read_csv(path, header=None, names=['KinaseFamily','KinaseGroup','Kinase','Substrate','PMIDS','Databases'])
     with open(gmtPath,"w") as newGMT:
         for k in list(df.Kinase.unique()):
@@ -946,7 +944,7 @@ for db in allDbs:
                 newGMT.write(k+"\t"+newName+"\t"+"\t".join(substrates)+"\n")
 
 ############ Recombine new KEA file ##########
-files = os.listdir("X2K_Databases/KINASE/")
+files = os.listdir("../X2K_Databases/KINASE/")
 files.remove("KEA_datasets")
 for db in files:
     Dir = "X2K_Databases/KINASE/"+db+"/"

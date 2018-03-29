@@ -29,7 +29,6 @@ with open(directory+"Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_
         noVals_dn.write(experiment+"\t\t"+"\t".join(editedGenes)+"\n")
 
 
-
 ## 1. By matching perturbation types with up/dn files
 import re
 with open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_COMBINED.txt") as kinase_pert_combo, \
@@ -49,6 +48,28 @@ with open(directory + "Validation/Perturbation_Data/GEO/Kinase_Perturbations_fro
             print("Not sure?...")
     kinase_pert_combo.close()
     filteredFile.close()
+
+
+# Combine L1000_kinasePerturbation UpDn files
+def reformatL1000_kinasePert():
+    with open("../X2K_Databases/Validation/Perturbation_Data/LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_up.txt") as Lup,\
+        open("../X2K_Databases/Validation/Perturbation_Data/LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations_down.txt") as Ldn, \
+        open("../X2K_Databases/Validation/Perturbation_Data/LINCS_L1000_Kinase_pert/LINCS_L1000_Kinase_Perturbations.txt","w") as combo:
+        up = Lup.readlines()
+        dn = Ldn.readlines()
+        def format(lines, UpDn):
+            for line in lines:
+                lsplit = line.split("\t")
+                gene = lsplit[0].split("_")[0]
+                name = "_".join(lsplit[0].split("_")[1:]+[UpDn])
+                DEGs=lsplit[2:]
+                newDEGS=[]
+                for d in DEGs:
+                    newDEGS.append(d.replace(",1.0",""))
+                combo.write(gene+"\t"+name+"\t"+"\t".join(newDEGS))
+        format(up, "up")
+        format(dn, "dn")
+
 
 
 
