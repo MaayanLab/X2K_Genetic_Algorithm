@@ -353,18 +353,98 @@ def randomKinaseGMT(numGenes):
 randomKinaseGMT(300)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+from Python_scripts.X2K_Pipeline import X2K_fitness
+def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdjustedOverlap', testFitness=False):
+    import pandas as pd; import numpy as np
+    fitDF=pd.DataFrame(columns=allDataDF.columns)
+    for i,indiv in enumerate(population):
+        print("\n****** Generation "+str(genCount)+"  ::  Individual " + str(i+1) + " ******")
+        # Delete .DS_Store files
+        import os
+        for root, dirs, files in os.walk(os.getcwd()):
+            for file in files:
+                if file.endswith(".DS_Store"):
+                    os.remove(os.path.join(root, file))
+        if testFitness == True:
+            new_fitness = sum(map(int, indiv))  # Test fitness
+            print('Fake fitness= ' + str(new_fitness))
+            newBinary = indiv
+            fitDF = fitDF.append(pd.DataFrame(np.column_stack([genCount,indiv,newBinary,fitnessMethod,new_fitness,"NA","NA","NA","NA","NA","NA","NA"]), columns=allDataDF.columns))
+        else:
+            # Calculate fitness (ONLY if it hasn't been previously calculated)
+            if indiv not in allDataDF.newBinary.tolist():
+                new_fitness, PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness, TKs, PKs = X2K_fitness(indiv,fitnessMethod)
+                # Make new Dataframe
+                fitDF = fitDF.append( pd.DataFrame(np.column_stack([genCount, indiv, newBinary,fitnessMethod, new_fitness, baselineFitness, \
+                                                                    PPI_size, chea_parameters, g2n_string, kea_string, TKs, PKs]), columns=allDataDF.columns) )
+                print("PPI Size = " +str(PPI_size))
+            else:
+                newBinary = indiv
+                same = allDataDF[allDataDF.newBinary==indiv].iloc[0,:].copy() # Get the first individual that matches this one
+                same['Generation'] = genCount
+                fitDF = fitDF.append(same)
+                print("[Using previously calculated fitness = "+ str(same.Fitness)+"]")
+                print("[BaselineFitness = "+str(same.baselineFitness)+"]")
+                print("[PPI size = "+str(same.PPI_size)+"]")
+        print("OldBinary: " + indiv)
+        print("NewBinary: "+ newBinary)
+    # Convert cols to numeric
+    fitDF['Fitness'] = pd.to_numeric(fitDF['Fitness'], errors='ignore')
+    fitDF['baselineFitness'] = pd.to_numeric(fitDF['baselineFitness'], errors='ignore')
+    fitDF['PPI_size'] = pd.to_numeric(fitDF['PPI_size'], errors='ignore')
+    return fitDF
+
 ### ****** Run X2K on 1000 random GMTs to get the null rank distribution of each gene ****** ###
-def randomX2Kruns(selectedBinary):
-    try:
-        del calculateFitness
-    except NameError:
-        pass
-    from Python_scripts.X2K_GeneticAlgorithm import calculateFitness
+def randomX2Kruns(randomGA_df):
+    from Python_scripts.Extra_X2K_functions import getFittestIndividual
+    from subprocess import call
+    import os
+    from shutil import copyfile
+
+    def clearTestGMT():
+        import os
+        dir_name = "data/testgmt/"
+        files = os.listdir(dir_name)
+        for item in files:
+            if item.endswith(".txt") or item.endswith(".gmt"):
+                os.remove(os.path.join(dir_name, item))
+    # Choose a single binary string to use (e.g. optimized)
+    selectedBinary = getFittestIndividual(randomGA_df)
+    # Setup DF
     allDataDF = pd.DataFrame(
         columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
                  'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
+    # Loop for 1000 random files
     for i in range(1000):
+        # Kill CHEA
+        PID = os.popen('lsof -i tcp:5000').read().split(" ")[34]
+        os.popen('kill '+PID)
+        call(['kill',PID])
+        # Replace testGMT with new file
         randomKinaseGMT(300)
+        clearTestGMT()
+        copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt",\
+                 "data/testgmt/allKinases_randomGenes.gmt")
+        # Startup CHEA again
+        os.popen('java -jar x2k_CHEA.jar')
         fitDF = calculateFitness(selectedBinary, allDataDF)
         allDataDF = allDataDF.append(fitDF)
     return allDataDF, selectedBinary
+
+# lsof -i tcp:5001
+# COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+# java    70871 schilder    5u  IPv6 0x7d91bfdfeea593bd      0t0  TCP *:commplex-link (LISTEN)
+# kill 70871

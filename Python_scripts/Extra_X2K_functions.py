@@ -442,3 +442,8 @@ def predictedKinaseRanks(GA_df):
     return meanRankDF
 
 
+def getFittestIndividual(GA_df):
+    return GA_df.sort_values(by=['Fitness'], ascending=False).iloc[0].newBinary
+
+
+
