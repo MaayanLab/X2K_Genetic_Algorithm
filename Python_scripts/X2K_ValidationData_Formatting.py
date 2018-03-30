@@ -353,19 +353,6 @@ def randomKinaseGMT(numGenes):
 randomKinaseGMT(300)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 from Python_scripts.X2K_Pipeline import X2K_fitness
 def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdjustedOverlap', testFitness=False):
     import pandas as pd; import numpy as np
@@ -408,43 +395,159 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
     return fitDF
 
 ### ****** Run X2K on 1000 random GMTs to get the null rank distribution of each gene ****** ###
-def randomX2Kruns(randomGA_df):
-    from Python_scripts.Extra_X2K_functions import getFittestIndividual
-    from subprocess import call
+
+# Choose a single binary string to use (e.g. optimized)
+#from Python_scripts.Extra_X2K_functions import getFittestIndividual
+#selectedBinary = getFittestIndividual(randomGA_df)
+selectedBinary='1101100000111110110001010011001101110010111'
+
+
+
+def randomX2Kruns(selectedBinary):
+    import pandas as pd
     import os
     from shutil import copyfile
-
-    def clearTestGMT():
+    from time import sleep
+    # Setup DF
+    allDataDF = pd.DataFrame(
+        columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
+                 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
+    def addRandomGMT():
+        # Clear old
         import os
         dir_name = "data/testgmt/"
         files = os.listdir(dir_name)
         for item in files:
             if item.endswith(".txt") or item.endswith(".gmt"):
                 os.remove(os.path.join(dir_name, item))
-    # Choose a single binary string to use (e.g. optimized)
-    selectedBinary = getFittestIndividual(randomGA_df)
-    # Setup DF
-    allDataDF = pd.DataFrame(
-        columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
-                 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
+        # Make new
+        randomKinaseGMT(300)
+        # Copy to testGMT folder
+        copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt", \
+                 "data/testgmt/allKinases_randomGenes.gmt")
+    ## Startup G2N and KEA
+    try:
+        os.popen('java -jar x2k_CHEA.jar')
+        os.popen('java -jar x2k_G2N.jar')
+        os.popen('java -jar x2k_KEA.jar')
+    except:
+        print("Already loaded")
     # Loop for 1000 random files
     for i in range(1000):
+        print('Run: '+str(i))
         # Kill CHEA
-        PID = os.popen('lsof -i tcp:5000').read().split(" ")[34]
-        os.popen('kill '+PID)
-        call(['kill',PID])
+        try:
+            ind = os.popen('lsof -i tcp:5000').read().split(" ").index("schilder")
+            PID = os.popen('lsof -i tcp:5000').read().split(" ")[ind-1]
+            os.popen('kill ' + PID)
+        except:
+            print("No process to kill")
         # Replace testGMT with new file
-        randomKinaseGMT(300)
-        clearTestGMT()
-        copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt",\
-                 "data/testgmt/allKinases_randomGenes.gmt")
+        addRandomGMT()
         # Startup CHEA again
         os.popen('java -jar x2k_CHEA.jar')
-        fitDF = calculateFitness(selectedBinary, allDataDF)
+        sleep(5)
+        # Calculate fitness (after allowing CHEA some time to load up)
+        fitDF = calculateFitness([selectedBinary], allDataDF)
         allDataDF = allDataDF.append(fitDF)
+    # Save results
+    GA_output_name = 'X2K_NullDist-PKlengthCorrected.npy'
+    import os, numpy as np
+    results_dir = 'GA_Results/Null_Distribution/'
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    np.save(results_dir + GA_output_name, allDataDF)
+
     return allDataDF, selectedBinary
 
-# lsof -i tcp:5001
-# COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-# java    70871 schilder    5u  IPv6 0x7d91bfdfeea593bd      0t0  TCP *:commplex-link (LISTEN)
-# kill 70871
+allDataDF, selectedBinary = randomX2Kruns(selectedBinary)
+allDataDF = pd.read_csv('GA_Results/Null_Distribution/X2K_NullDist-PKlengthCorrected.csv')
+
+# Get null distribution s
+def nullDistributions(allDataDF):
+    import pandas as pd
+    KINASES = pd.read_table("data/KEA/kea_ranks.txt", header=None)[0].tolist()
+    fullranks = list(range(1, len(KINASES) + 1))
+    allPKs = allDataDF.predictedKinases.tolist()
+    rankList=[]; predictedKinaseList=[]
+    for ind in allPKs:
+        print(ind)
+        expts = ind.split(";")
+        for exp in expts:
+            expSplit = exp.split(",")
+            misses = set(KINASES) - set(expSplit)
+            remainingRanks = fullranks[len(set(expSplit))-1:]
+            avgRank = sum(remainingRanks)/len(remainingRanks)
+            for k in misses:
+                rankList.append(avgRank)
+                predictedKinaseList.append(k)
+            if expSplit!=['']:
+                for i,pkin in enumerate(expSplit):
+                    rankList.append(i+1)
+                    predictedKinaseList.append(pkin)
+    df = pd.DataFrame({"predictedKinase":predictedKinaseList,"ranks":rankList})
+    df['Rank'] = df["ranks"].astype(int)
+    df['Counts'] = df.groupby(['predictedKinase','Rank']).transform('count')
+
+    DF = df.copy()
+    DF = DF.drop_duplicates()
+
+    from scipy.stats.mstats import zscore
+    Zdf = pd.DataFrame({'Rank':range(1,473+1)})
+    Zdf = Zdf.astype(int) #[newDF['Rank']<=20]
+    neverPredicted=[]
+    for kinase in KINASES:
+        print("Processing: "+str(kinase))
+        sub = DF[DF['predictedKinase']==kinase].sort_values(by='Rank')
+        #sub = sub[sub['Rank']<=20] # Remove any Ranks over 20
+        if len(sub)>0:
+            tmpMerge = pd.merge(Zdf, sub, on='Rank', how='left').fillna(0)
+            tmpMerge['Zscore'] = zscore(tmpMerge['Counts'].tolist())
+            Zdf[str(kinase)] = tmpMerge['Zscore']
+        else:
+            neverPredicted.append(kinase)
+            print("No sig ranks for: "+str(kinase))
+    Zdf.to_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions_all.csv", index=None)
+
+def plotNullDist():
+    # Plot
+    ## Mean rank for every kinase
+    import numpy as np
+    import matplotlib.pyplot as plt
+    DF['ranks'] = pd.to_numeric(DF['ranks'])
+    avgRank = DF[DF['Rank']<=20].groupby('predictedKinase')['ranks'].mean().reset_index().iloc[1:,:]
+    avgRank.plot(x='predictedKinase', y='ranks', kind='bar')
+    plt.xticks(rotation=90, ha='center', fontsize=6)
+
+    medianRank = DF[DF['Rank']<=20].groupby('predictedKinase')['ranks'].median().reset_index().iloc[1:,:]
+    medianRank.plot(x='predictedKinase', y='ranks', kind='bar', label="", legend=False)
+    plt.xticks(rotation=90,  ha='center', fontsize=6)
+    plt.title("Median Rank for all Predicted Kinases")
+
+    ## Single kinase dist
+    def plotGene(gene):
+        geneSub = DF[DF['predictedKinase']==gene][DF['Rank']<=20].copy()
+        geneSub = geneSub.sort_values(by='Rank')
+        geneSub.plot(x="Rank", y="Counts", kind="bar",color="pink", label="", legend=False)
+        plt.title(str(gene)+" : rank frequencies")
+        plt.xticks(np.arange(0, 20, 1))
+    plotGene('TNIK')
+    plotGene('ABL1')
+    plotGene('TYK2')
+    plotGene('VRK2')
+
+    Zdf = pd.read_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions_all.csv", index_col=None)
+    def plotZscore(gene):
+        Zdf.plot(x='Rank',y=gene, kind='bar', color='c', legend='')
+        plt.ylabel('Z-score of Rank Frequencies')
+        plt.title(str(gene) + " : Null Distribution")
+    plotZscore('TNIK')
+    plotZscore('ABL1')
+    plotZscore('TYK2')
+    plotZscore('MAPK1')
+
+
+
+
+
+
