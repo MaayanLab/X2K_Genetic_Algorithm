@@ -858,11 +858,9 @@ with open("X2K_Databases/KINASE/NetworkIN_2017/NetworkIN-05-2017_UnknownSpecies_
 # -----------HMS LINCS KINOMEscan-----------
 kscan = pd.read_excel("X2K_Databases/General_Resources/KINOMEscan/Processing/HMS-LINCS_KinomeScan_Datasets_2017-10-23.xlsx")
 kscanProts = pd.read_excel("X2K_Databases/General_Resources/KINOMEscan/Processing/proteins_20180116225538.xlsx")
-#kscanProts = kscanProts.dropna(subset=['Gene Symbol'])
-kscanProts.head()
 geneDict = dict(zip(kscanProts['Name'], kscanProts['Gene Symbol']))
 
-# [1] Collect all data first
+## [1] Collect all data first
 superData = pd.DataFrame(columns=['controlType', 'datapointName', 'datapointUnit', 'datapointValue',\
    'datarecordID', 'hmsDatasetID', 'protein_ppCenterBatchID',\
    'protein_ppCenterCanonicalID', 'protein_ppName', 'protein_pplincsid',\
@@ -871,7 +869,7 @@ superData = pd.DataFrame(columns=['controlType', 'datapointName', 'datapointUnit
    'smallmolecule_smName', 'smallmolecule_smSalt', 'GeneSymbol'] )
 for id in kscan.dataset_id:
     print('Adding Data to SuperData: '+str(id))
-    # Download data from json
+    # Download json data and convert to dataframe
     url = "http://lincs.hms.harvard.edu/db/api/v1/"+"datasetdata/"+str(id)
     data = pd.read_json(url)
     if len(data)>0:
@@ -879,7 +877,7 @@ for id in kscan.dataset_id:
     else:
         print('Missing Data: ' + str(id))
 
-# [2] Convert superData into GMT (with each drug combined into one line)
+## [2] Convert superData into GMT (with each drug combined into one line)
 with open("X2K_Databases/General_Resources/KINOMEscan/KINOMEscan-01-2018_Small-Molecule-Kinase-Perturbations.gmt","w") as newFile:
     for drug in list(superData.smallmolecule_smName.unique()):
         data = superData[superData.smallmolecule_smName==drug]

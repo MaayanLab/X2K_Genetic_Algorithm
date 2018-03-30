@@ -1,10 +1,6 @@
 #############################################################################################
 ##################### X2K: Pipeline & Fitness Function #####################
 #############################################################################################
-# lsof -i tcp:5001
-# COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-# java    70871 schilder    5u  IPv6 0x7d91bfdfeea593bd      0t0  TCP *:commplex-link (LISTEN)
-# kill 70871
 
 
 # For checking whether the bit_dict is recording the right parameters

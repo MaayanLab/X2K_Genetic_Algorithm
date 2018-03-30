@@ -338,6 +338,10 @@ def randomDEGsGMT(testGMT):
 randomDEGsGMT("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
 randomDEGsGMT("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
 
+
+
+
+
 ## One row for each kinase in the kinome, with 300 DEGs each
 def randomKinaseGMT(numGenes):
     import pandas as pd
@@ -351,19 +355,6 @@ def randomKinaseGMT(numGenes):
                 randomDEGs.append(str(choice(allGenes)).upper())
             GMT.write(k+"_allKinases-randomGenes"+"\t\t"+"\t".join(randomDEGs)+"\n")
 randomKinaseGMT(300)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 from Python_scripts.X2K_Pipeline import X2K_fitness
@@ -408,43 +399,110 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
     return fitDF
 
 ### ****** Run X2K on 1000 random GMTs to get the null rank distribution of each gene ****** ###
-def randomX2Kruns(randomGA_df):
-    from Python_scripts.Extra_X2K_functions import getFittestIndividual
-    from subprocess import call
+
+# Choose a single binary string to use (e.g. optimized)
+#from Python_scripts.Extra_X2K_functions import getFittestIndividual
+#selectedBinary = getFittestIndividual(randomGA_df)
+selectedBinary='1101100000111110110001010011001101110010111'
+
+
+def randomX2Kruns(selectedBinary):
+    import pandas as pd
     import os
     from shutil import copyfile
-
-    def clearTestGMT():
+    from time import sleep
+    # Setup DF
+    allDataDF = pd.DataFrame(
+        columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
+                 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
+    def addRandomGMT():
+        # Clear old
         import os
         dir_name = "data/testgmt/"
         files = os.listdir(dir_name)
         for item in files:
             if item.endswith(".txt") or item.endswith(".gmt"):
                 os.remove(os.path.join(dir_name, item))
-    # Choose a single binary string to use (e.g. optimized)
-    selectedBinary = getFittestIndividual(randomGA_df)
-    # Setup DF
-    allDataDF = pd.DataFrame(
-        columns=['Generation', 'oldBinary', 'newBinary', 'fitnessMethod', 'Fitness', 'baselineFitness', \
-                 'PPI_size', 'CHEA_parameters', 'G2N_parameters', 'KEA_parameters', 'targetKinases', 'predictedKinases'])
+        # Make new
+        randomKinaseGMT(300)
+        # Copy to testGMT folder
+        copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt", \
+                 "data/testgmt/allKinases_randomGenes.gmt")
+    ## Startup G2N and KEA
+    try:
+        os.popen('java -jar x2k_CHEA.jar')
+        os.popen('java -jar x2k_G2N.jar')
+        os.popen('java -jar x2k_KEA.jar')
+    except:
+        print("Already loaded")
     # Loop for 1000 random files
     for i in range(1000):
+        print('Run: '+str(i))
         # Kill CHEA
-        PID = os.popen('lsof -i tcp:5000').read().split(" ")[34]
-        os.popen('kill '+PID)
-        call(['kill',PID])
+        try:
+            ind = os.popen('lsof -i tcp:5000').read().split(" ").index("schilder")
+            PID = os.popen('lsof -i tcp:5000').read().split(" ")[ind-1]
+            os.popen('kill ' + PID)
+        except:
+            print("No process to kill")
         # Replace testGMT with new file
-        randomKinaseGMT(300)
-        clearTestGMT()
-        copyfile("Validation/Perturbation_Data/Random_GMTs/allKinases_randomGenes.gmt",\
-                 "data/testgmt/allKinases_randomGenes.gmt")
+        addRandomGMT()
         # Startup CHEA again
         os.popen('java -jar x2k_CHEA.jar')
-        fitDF = calculateFitness(selectedBinary, allDataDF)
+        sleep(5)
+        # Calculate fitness (after allowing CHEA some time to load up)
+        fitDF = calculateFitness([selectedBinary], allDataDF)
         allDataDF = allDataDF.append(fitDF)
+    # Save results
+    GA_output_name = 'X2K_NullDist-PKlengthCorrected.npy'
+    import os, numpy as np
+    results_dir = 'GA_Results/Null_Distribution/'
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    np.save(results_dir + GA_output_name, allDataDF)
+
     return allDataDF, selectedBinary
 
-# lsof -i tcp:5001
-# COMMAND   PID     USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-# java    70871 schilder    5u  IPv6 0x7d91bfdfeea593bd      0t0  TCP *:commplex-link (LISTEN)
-# kill 70871
+allDataDF, selectedBinary = randomX2Kruns(selectedBinary)
+
+
+# Get null distribution s
+def nullDistributions(allDataDF):
+    KINASES = pd.read_table("data/KEA/kea_ranks.txt", header=None)[0].tolist()
+    fullranks = list(range(1, len(KINASES) + 1))
+    allPKs = allDataDF.predictedKinases.tolist()
+    rankList=[]; predictedKinaseList=[]
+    for ind in allPKs:
+        expts = ind.split(";")
+        for exp in expts:
+            expSplit = exp.split(",")
+            misses = set(KINASES) - set(expSplit)
+            remainingRanks = fullranks[len(set(expSplit)):]
+            avgRank = sum(remainingRanks)/len(remainingRanks)
+            for k in misses:
+                rankList.append(avgRank)
+                predictedKinaseList.append(k)
+            for i,pkin in enumerate(expSplit):
+                rankList.append(i+1)
+                predictedKinaseList.append(pkin)
+    df = pd.DataFrame({"predictedKinase":predictedKinaseList,"rank":rankList})
+    df['Rank'] = df["rank"].astype(int)
+    df['Counts'] = df.groupby(['predictedKinase','Rank']).transform('count')
+
+    DF = df.copy()
+    DF = DF.drop_duplicates()
+    from scipy.stats.mstats import zscore
+    newDF = pd.DataFrame({'Rank':range(1,473+1)})
+    for kinase in KINASES:
+        print("Processing: "+str(kinase))
+        sub = DF[DF['predictedKinase']==kinase].sort_values(by='Rank')
+        tmpMerge = pd.merge(newDF, sub, on='Rank', how='left').fillna(0)
+        tmpMerge['Zscore'] = zscore(tmpMerge['Counts'].tolist())
+        newDF[str(kinase)] = tmpMerge['Zscore']
+
+    newDF.to_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions.csv", index=None)
+
+
+
+
+

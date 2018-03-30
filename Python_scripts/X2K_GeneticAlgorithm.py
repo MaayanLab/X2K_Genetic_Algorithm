@@ -23,7 +23,7 @@ except NameError:
     pass
 from Python_scripts.X2K_Pipeline import X2K_fitness
 
-def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdjustedOverlap', testFitness=False):
+def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdjustedOverlap'):
     import pandas as pd; import numpy as np
     fitDF=pd.DataFrame(columns=allDataDF.columns)
     for i,indiv in enumerate(population):
@@ -34,29 +34,29 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
             for file in files:
                 if file.endswith(".DS_Store"):
                     os.remove(os.path.join(root, file))
-        if testFitness == True:
-            new_fitness = sum(map(int, indiv))  # Test fitness
-            print('Fake fitness= ' + str(new_fitness))
-            newBinary = indiv
-            fitDF = fitDF.append(pd.DataFrame(np.column_stack([genCount,indiv,newBinary,fitnessMethod,new_fitness,"NA","NA","NA","NA","NA","NA","NA"]), columns=allDataDF.columns))
+
+        # Calculate fitness (ONLY if it hasn't been previously calculated)
+        if indiv in allDataDF.newBinary.tolist():
+            same = allDataDF[allDataDF.newBinary == indiv].iloc[0,:].copy()
+            same['Generation'] = genCount
+            fitDF = fitDF.append(same)
+            print("[Using previously calculated fitness = " + str(same.Fitness) + "]")
+            print("[BaselineFitness = " + str(same.baselineFitness) + "]")
+            print("[PPI size = " + str(same.PPI_size) + "]")
+        if indiv in fitDF.newBinary.tolist():
+            same = fitDF[fitDF.newBinary == indiv].iloc[0, :].copy()
+            same['Generation'] = genCount
+            fitDF = fitDF.append(same)
+            print("[Using previously calculated fitness = " + str(same.Fitness) + "]")
+            print("[BaselineFitness = " + str(same.baselineFitness) + "]")
+            print("[PPI size = " + str(same.PPI_size) + "]")
         else:
-            # Calculate fitness (ONLY if it hasn't been previously calculated)
-            if indiv not in allDataDF.newBinary.tolist():
-                new_fitness, PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness, TKs, PKs = X2K_fitness(indiv,fitnessMethod)
-                # Make new Dataframe
-                fitDF = fitDF.append( pd.DataFrame(np.column_stack([genCount, indiv, newBinary,fitnessMethod, new_fitness, baselineFitness, \
-                                                                    PPI_size, chea_parameters, g2n_string, kea_string, TKs, PKs]), columns=allDataDF.columns) )
-                print("PPI Size = " +str(PPI_size))
-            else:
-                newBinary = indiv
-                same = allDataDF[allDataDF.newBinary==indiv].iloc[0,:].copy() # Get the first individual that matches this one
-                same['Generation'] = genCount
-                fitDF = fitDF.append(same)
-                print("[Using previously calculated fitness = "+ str(same.Fitness)+"]")
-                print("[BaselineFitness = "+str(same.baselineFitness)+"]")
-                print("[PPI size = "+str(same.PPI_size)+"]")
-        print("OldBinary: " + indiv)
-        print("NewBinary: "+ newBinary)
+            new_fitness, PPI_size, newBinary, chea_parameters, g2n_string, kea_string, baselineFitness, TKs, PKs = X2K_fitness(indiv,fitnessMethod)
+            # Make new Dataframe
+            fitDF = fitDF.append( pd.DataFrame(np.column_stack([genCount, indiv, newBinary,fitnessMethod, new_fitness, baselineFitness, \
+                                                                PPI_size, chea_parameters, g2n_string, kea_string, TKs, PKs]), columns=allDataDF.columns) )
+    print("OldBinary: " + indiv)
+    print("NewBinary: "+ newBinary)
     # Convert cols to numeric
     fitDF['Fitness'] = pd.to_numeric(fitDF['Fitness'], errors='ignore')
     fitDF['baselineFitness'] = pd.to_numeric(fitDF['baselineFitness'], errors='ignore')
