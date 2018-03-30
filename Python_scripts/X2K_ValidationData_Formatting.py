@@ -493,16 +493,19 @@ def nullDistributions(allDataDF):
     DF = DF.drop_duplicates()
     from scipy.stats.mstats import zscore
     newDF = pd.DataFrame({'Rank':range(1,473+1)})
+    newDF = newDF[newDF['Rank']<=20]
     for kinase in KINASES:
         print("Processing: "+str(kinase))
         sub = DF[DF['predictedKinase']==kinase].sort_values(by='Rank')
+        sub = sub[sub['Rank']<=20] # Remove any Ranks over 20
         tmpMerge = pd.merge(newDF, sub, on='Rank', how='left').fillna(0)
         tmpMerge['Zscore'] = zscore(tmpMerge['Counts'].tolist())
         newDF[str(kinase)] = tmpMerge['Zscore']
 
-    newDF.to_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions.csv", index=None)
+    newDF.to_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions_sub.csv", index=None)
 
-
+import matplotlib.pyplot as plt
+newDF.plot(x="Rank", y="MAPK1")
 
 
 
