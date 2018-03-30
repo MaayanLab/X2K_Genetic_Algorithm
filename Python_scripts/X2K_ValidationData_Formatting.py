@@ -491,6 +491,8 @@ def nullDistributions(allDataDF):
 
     DF = df.copy()
     DF = DF.drop_duplicates()
+    avgRank = DF.groupby('predictedKinase')['rank'].mean()
+
     from scipy.stats.mstats import zscore
     newDF = pd.DataFrame({'Rank':range(1,473+1)})
     newDF = newDF[newDF['Rank']<=20]
@@ -506,6 +508,6 @@ def nullDistributions(allDataDF):
 
 import matplotlib.pyplot as plt
 newDF.plot(x="Rank", y="MAPK1")
-
+avgRank.plot(x=avgRank.index, y=avgRank[0], kind='bar')
 
 
