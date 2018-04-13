@@ -198,6 +198,7 @@ def createChildren(numberOfChildren, fittestDF, mutationRate, breedingVariation,
 
 def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, childrenPerGeneration, crossoverPoints, crossoverLocations, breedingVariation, mutationRate, includeFittestParents, fitnessMethod, selectionMethod, setInitialPopulation=False):
     # Store GA settings in in a dictionary
+    import pandas as pd
     GAsettings = dict(zip(
         ['initialPopSize', 'binaryStringLength', 'numberOfGenerations', 'topNum', 'childrenPerGeneration',\
          'crossoverPoints', 'crossoverLocations','breedingVariation', 'mutationRate', 'includeFittestParents', 'fitnessMethod','selectionMethod', 'setInitialPopulation'], \
@@ -232,8 +233,8 @@ def GAfunction(initialPopSize, binaryStringLength, numberOfGenerations, topNum, 
     return allDataDF, GAsettings
 
 
-GA_df, GAsettings = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=8, crossoverPoints=6, crossoverLocations='random',\
-                       breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='rankCorrectedTAO', selectionMethod='mixedTournament', setInitialPopulation=False)
+#GA_df, GAsettings = GAfunction(initialPopSize=10, binaryStringLength=43, numberOfGenerations=2, topNum=2, childrenPerGeneration=8, crossoverPoints=6, crossoverLocations='random',\
+                       #breedingVariation=0, mutationRate=0.01, includeFittestParents=2, fitnessMethod='rankCorrectedTAO', selectionMethod='mixedTournament', setInitialPopulation=False)
                         #targetAdjustedOverlap
 
 
@@ -267,7 +268,8 @@ copyfile("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1
 ## Run GA with Subset1
 Subset1_df, GAsettings = GAfunction(initialPopSize=100, binaryStringLength=43, numberOfGenerations=20, topNum=10, childrenPerGeneration=90,\
                                     crossoverPoints=5, crossoverLocations='random', breedingVariation=0, mutationRate=0.01, includeFittestParents=10, \
-                                    fitnessMethod='targetAdjustedOverlap_outputLengthCorrection', selectionMethod='mixedTournament') # modifiedRBO, targetAdjustedOverlap, rankCorrectedTAO
+                                    fitnessMethod='simpleRankFitness', selectionMethod='mixedTournament')
+                                    # modifiedRBO, targetAdjustedOverlap, rankCorrectedTAO, targetAdjustedOverlap_outputLengthCorrection, simpleRankFitness
 
 
 
@@ -304,7 +306,7 @@ Subset2_df = runSubset2(Subset1_df, GAsettings)
 
 # Save/load GAresults as file
 # Save
-GA_output_name = 'GAresults_GEO-PKlengthCorrected.npy'
+GA_output_name = 'GAresults_GEO-uberKEA(wrong).npy'
 import os, numpy as np
 results_dir = 'GA_Results/GEO/'
 if not os.path.exists(results_dir):

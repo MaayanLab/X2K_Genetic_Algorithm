@@ -351,6 +351,18 @@ def X2K_fitness(binaryString, fitnessMethod):
             predictedKinases[-1] = predictedKinases[-1].strip()
         return( [kinaseTargets, predictedKinases] )
 
+    # Get synonyms
+    import pickle
+    with open('../X2K_Summaries/General_Resources/synDict.pkl', 'rb') as f:
+        synDict = pickle.load(f)
+
+    def getSyn(gene):
+        if gene in synDict.keys():
+            syns = synDict[gene]
+        else:
+            syns =[gene]
+        return syns
+
     def randomizedBaselineFitness(KEAlines, fitnessMETHOD, dataType):
         from random import choice
         shuffled_KEAlines = []
@@ -364,7 +376,8 @@ def X2K_fitness(binaryString, fitnessMethod):
         """
         # Get list of ALL kinases
         import pandas as pd
-        KINASES = pd.read_table("../X2K_Databases/General_Resources/Kinase_Families_Maxime/kinases_fam.tsv",header=None, names=["Name", "Group", "Family"], index_col=False)['Name'].tolist()
+        KINASES = pd.read_table("../X2K_Summaries/General_Resources/Kinase_Families_Maxime/kinases_fam.tsv", \
+                                header=None, names=["Name", "Group", "Family"], index_col=False)['Name'].tolist()
         for line in KEAlines:
             info = line.split(',')[0].split("_")[1:]
             newKinase = choice(KINASES) # Randomly select any kinase
@@ -487,6 +500,30 @@ def X2K_fitness(binaryString, fitnessMethod):
                 correctedScores.append(0)
         fitnessScore = sum(correctedScores) / len(correctedScores)
         return fitnessScore, TKs, PKs
+
+    def simpleRankFitness(KEAlines, dataType):
+        from random import randint
+        ranks = [];TKs = []; PKs = []
+        for line in KEAlines:
+            targetKinases, predictedKinases = parseTargetsPredicted(line, dataType)
+            TKs.append(targetKinases); PKs.append(predictedKinases)
+            # Add target kinase synonyms
+            targetKinases_syns=[]
+            for tk in targetKinases:
+                targetKinases_syns = list(set(targetKinases_syns + getSyn(tk)))
+            # Get the ranks of each hit
+            kinaseHits  = set(targetKinases_syns).intersection(set(predictedKinases))
+            for i in range(len(targetKinases)): # iterate over each tk for L1000-DRH
+                if len(kinaseHits)>0:
+                    for hit in kinaseHits:
+                        ranks.append( predictedKinases.index(hit) )
+                else:
+                    # If not a hit, randomly select a rank from all the non-hits
+                    ranks.append(randint(0,473-len(predictedKinases)) )
+        fitnessScore = sum(ranks)/len(ranks)
+        converrtedFitness = (472 - fitnessScore)/472
+        return converrtedFitness, TKs, PKs
+
 
 
     # ----------------------------- Calculate fitness -----------------------------#
