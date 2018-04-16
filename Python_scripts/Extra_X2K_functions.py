@@ -208,7 +208,7 @@ def ParameterViolinPlots(GA_df, numRows=2, numCols=5, figSize=(10,6)):
 
 
 
-def fitnessHistogramCurves(GA_df, genSpacing=2, figSize=(10,6)):
+def fitnessHistogramCurves(GA_df, y_measure, genSpacing=2, figSize=(10,6)):
     df = GA_df.copy()
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import cm
@@ -228,10 +228,10 @@ def fitnessHistogramCurves(GA_df, genSpacing=2, figSize=(10,6)):
 
     plt.figure()
     for i,gen in enumerate(whichGens):
-        datos=df[df.Generation==gen].Fitness
+        datos=df[df.Generation==gen][y_measure]
         # Use kernal density plot function from seaborn
         sns.kdeplot(datos, shade=True, color=color[i], bw=1, label="Gen: "+str(gen), gridsize=100)
-    plt.xlabel('Fitness')
+    plt.xlabel(y_measure)
     plt.ylabel('Frequency')
     #plt.title('Distribution of All Fitnesses: Every %.0f Generation(s)' % (gen_spacing))
     plt.gcf().set_facecolor('white')
@@ -442,8 +442,96 @@ def predictedKinaseRanks(GA_df):
     return meanRankDF
 
 
+def kinaseHits_perGen(GA_df):
+    import pandas as pd
+    import numpy as np
+    kinases = pd.read_table("data/KEA/kea_ranks.txt", header=None)[0].tolist()
+    TKs = GA_df['targetKinases'].iloc[0].split(";")
+    # Create final dataframe
+    cols=['Generation', 'newBinary', 'targetKinase', 'Ranks'] #+ sorted(kinases)
+    rankRecord = pd.DataFrame(data=None, columns=cols)
+    # Loop over every individual
+    for i,row in GA_df.iterrows():
+        print(str(round(i/len(GA_df)*100, 3))+" % complete")
+        colz = ['targetKinase','Ranks']
+        rankDF = pd.DataFrame(columns=colz)
+        PKlists = [x.split(",") for x in  row['predictedKinases'].split(";")]
+        for pkList in PKlists:
+            for r,pk in enumerate(pkList):
+                if pk == TKs[r]: # not a hit, don't record; won't change avg rank for that gene either way
+                    rankDF = rankDF.append( pd.DataFrame(np.column_stack([pk, r+1.0]), columns=colz ) )
+        rankDF['Ranks'] = pd.to_numeric(rankDF['Ranks'])
+        # Get average rank for each kinase hit
+        avgRank = rankDF.groupby('targetKinase')['Ranks'].mean()
+        # Add all the kinases that were missed
+        missedKinases = list( set(kinases) - set(avgRank.index) )
+        for mk in missedKinases:
+            avgRank = avgRank.append(pd.DataFrame(np.column_stack([None]),index=[mk]))
+        avgRank = avgRank.sort_index().reset_index()
+        # Record average rank (across all experiments) of each kinase for this individual
+        rankRecord = rankRecord.append( pd.DataFrame(np.column_stack([[row.Generation]*len(avgRank), [row.newBinary]*len(avgRank), avgRank]), columns=cols) )
+        rankRecord['Ranks'] = pd.to_numeric(rankRecord['Ranks'])
+        rankRecord['Generation'] = pd.to_numeric(rankRecord['Generation'])
+    return rankRecord
+
+def plotKinaseHits_perGen(rankRecord, specificKinase='All Kinases'):
+
+
+
+    import matplotlib.pyplot as plt
+    if specificKinase=='All Kinases':
+        data = rankRecord.fillna(0)
+    elif specificKinase!='Kinase Hits':
+        data = rankRecord
+    else:
+        data = rankRecord[rankRecord['targetKinase'] == specificKinase].copy()
+    fitnessHistogramCurves(data, y_measure='Ranks', genSpacing=4)
+    plt.title("Recovered Kinase Rank Frequency Over GA Generations:\n"+str(specificKinase))
+plotKinaseHits_perGen(rankRecord, 'All Kinases')
+
+
+# % of target kinase hit over generations
+
+rankRecord_filt = rankRecord.dropna(subset=['Ranks'], inplace=False)
+allRanks = rankRecord.groupby(['Generation'])['Ranks'].value_counts(dropna=True).copy()
+unstackedRanks = allRanks.unstack(level=0).round(2)
+
+unstackedRanks.plot(kind='bar', subplots=True, legend=False)
+
+
+
+
+
 def getFittestIndividual(GA_df):
     return GA_df.sort_values(by=['Fitness'], ascending=False).iloc[0].newBinary
 
 
 
+
+# Try and improve speed of mapping function
+def createSynonymsDict():
+    # Get synonyms
+    import pandas as pd
+    mappingfile = pd.read_csv("../X2K_Summaries/General_Resources/Moshe_mapping/mappingFile_2017.txt", \
+                              sep="\t", header=None, index_col=False)
+    mappingfile[0] = [str(x).upper().strip() for x in mappingfile[0].tolist()]
+    mappingfile[1] = [str(x).upper().strip() for x in mappingfile[1].tolist()]
+
+    synDict = {}
+    for gene in mappingfile[0].unique():
+        mainGene = mappingfile[mappingfile[0] == gene][1].values[0]
+        allNames = mappingfile[mappingfile[1] == mainGene][0].values.tolist()
+        print(mainGene)
+        for name in allNames:
+            synDict[name] = list(set(allNames))
+    # Save as a pickle
+    import pickle
+    def save_obj(obj, ouputPath):
+        with open(ouputPath, 'wb') as f:
+            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+    save_obj(synDict, '../X2K_Summaries/General_Resources/synDict2.pkl')
+
+    with open('../X2K_Summaries/General_Resources/synDict.pkl', 'rb') as f:
+        synDict = pickle.load(f)
+
+    return synDict

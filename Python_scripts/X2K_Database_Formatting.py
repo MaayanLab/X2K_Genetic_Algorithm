@@ -69,7 +69,8 @@ pd.Series(TFs[1]).to_csv("X2K_Databases/General_Resources/compiled-TFs_Mouse-Hum
 #         KINASES.append(k)
 
 ## Maxime's Kinase Groups & Families (from Kinome.com)
-kinaseGroups = pd.read_table("X2K_Databases/General_Resources/Kinase_Families_Maxime/kinases_fam.tsv", header=None, names=["Name","Group","Family"], index_col=False)
+kinaseGroups = pd.read_table("X2K_Databases/General_Resources/Kinase_Families_Maxime/kinases_fam.tsv", \
+                             header=None, names=["Name","Group","Family"], index_col=False)
 ### Make kinase group/family dictionary
 kgroupDict = dict(zip(kinaseGroups.Name, zip(kinaseGroups.Group, kinaseGroups.Family)))
 
@@ -117,7 +118,7 @@ def getDatasetsSummary(dbFolderPath, dbTypes=["TF","PPI","KINASE" ], writeExcel=
         unique_TF_Ki = [];
         targets_substrates = [];
         targets_substrates_len = []
-        if dataset_path.endswith(tuple([".gmt", ".txt"])):
+        if dataset_path.endswith(tuple([".gmt"])):
             for line in data:
                 # Get TF/Kinase
                 TF_Ki = line.split("\t")[0].split("_")[0]
@@ -136,7 +137,7 @@ def getDatasetsSummary(dbFolderPath, dbTypes=["TF","PPI","KINASE" ], writeExcel=
         return num_TF_Kinase_Sets, num_unique_TF_Ki, num_targets_substrates, avg_set_size
 
     def extract_PPI_stats(dataset_path):
-        if dataset_path.endswith("sig"):
+        if dataset_path.endswith(".sig"):
             data = pd.read_table(dataset_path, header=None, delim_whitespace=True)
             totalInteractions = data.shape[0]
             uniqueInteractions = [];
@@ -146,7 +147,7 @@ def getDatasetsSummary(dbFolderPath, dbTypes=["TF","PPI","KINASE" ], writeExcel=
                 interactor = row.iloc[5]
                 if gene + "@" + interactor not in uniqueInteractions and interactor + "@" + gene not in uniqueInteractions:
                     uniqueInteractions.append(gene + "@" + interactor)
-            uniqueProteins = list(data[0].unique())
+            uniqueProteins = list(set(data[0].unique().tolist()+data[5].unique().tolist()))
             for prot in uniqueProteins:
                 prot_sub = data[data[0] == prot]
                 interactionsPerProtein.append(prot_sub.__len__())
@@ -200,7 +201,7 @@ def getDatasetsSummary(dbFolderPath, dbTypes=["TF","PPI","KINASE" ], writeExcel=
         writer.save()
     return TF_summaryTable, KINASE_summaryTable, PPI_summaryTable
 
-TF_summaryTable, PPI_summaryTable, KINASE_summaryTable= getDatasetsSummary(dbFolderPath="/Users/schilder/Desktop/X2K_Databases", dbTypes=["KINASE"], writeExcel="../X2K_Databases/X2K_Database_Summary.xlsx")
+TF_summaryTable, PPI_summaryTable, KINASE_summaryTable= getDatasetsSummary(dbFolderPath="/Users/schilder/Desktop/X2K_Databases", dbTypes=["KINASE"], writeExcel="../X2K_Summaries/X2K_Database_Summary.xlsx")
 
 
 
@@ -959,13 +960,13 @@ for db in files:
 import pandas as pd
 ## colNames info found here: https://psicquic.github.io/MITAB27Format.html
 colNames = ["uniprotA", "uniprotB", "InteractionID", "InteractionID2","GeneInfoA","GeneInfoB","InteractionMethods","Authors","PMID","SpeciesA", "SpeciesB", "InteractionType", "SourceDatabase", "InteractionID3", "ConfidenceScore"]
-hMINT = pd.read_table("X2K_Databases/PPI/MINT/Processing/MINT-03-2018_Human_raw.txt", names=colNames)
+hMINT = pd.read_table("../X2K_Databases/PPI/MINT_2018/Processing/MINT-03-2018_Human_raw.txt", names=colNames)
 
 # Show contents example
 for i in range(0,14):
     print(str(i) + ":    "+ hMINT.iloc[:,i][0] )
 
-mMINT = pd.read_table("X2K_Databases/PPI/MINT/Processing/MINT-03-2018_Mouse_raw.txt", names=colNames)
+mMINT = pd.read_table("../X2K_Databases/PPI/MINT_2018/Processing/MINT-03-2018_Mouse_raw.txt", names=colNames)
 #MINT = hMINT.append(mMINT)
 
 def extractMINT(MINTdf, SPECIES="", writeCSV=True):
@@ -1027,10 +1028,10 @@ def extractMINT(MINTdf, SPECIES="", writeCSV=True):
         newDF.to_csv("X2K_Databases/PPI/MINT_2018/MINT_"+SPECIES+"_table.csv")
     return newDF
 
-# mouseDF = extractMINT(mMINT, "Mouse")
-mouseDF = pd.read_csv("X2K_Databases/PPI/MINT_2018/Processing/MINT_Mouse_table.csv")
-# humanDF = extractMINT(hMINT, "Human")
-humanDF = pd.read_csv("X2K_Databases/PPI/MINT_2018/Processing/MINT_Human_table.csv")
+mouseDF = extractMINT(mMINT, "Mouse")
+mouseDF = pd.read_csv("../X2K_Databases/PPI/MINT_2018/Processing/MINT_Mouse_table.csv")
+humanDF = extractMINT(hMINT, "Human")
+humanDF = pd.read_csv("../X2K_Databases/PPI/MINT_2018/Processing/MINT_Human_table.csv")
 
 MINTdf2 = mouseDF.append(humanDF)
 MINTdf2['ConfidenceScore'] = pd.to_numeric(MINTdf2.ConfidenceScore, errors='coerce')*1.00
@@ -1060,4 +1061,74 @@ def MINTtoPPIsig(MINTdf2, species=""):
         sigDF.insert(loc=6, column="NA"+str(ind+4), value=NAs)
     sigDF.to_csv("X2K_Databases/PPI/MINT_2018/MINT-03-2018_" + species + "_PPI.sig", sep=" ", header=False, index=False)
 MINTtoPPIsig(MINTdf2, species='Mouse-Human')
+
+
+
+## ********* Create one UBER Kea database ********* ##
+
+def createUberKeaFile():
+    import os
+    import pandas as pd
+    import numpy as np
+    seenInteractions=[]
+    # Setup uber dataframe
+    cols = ['Family', 'Group', 'Kinase', 'Substrate', 'PMIDS', 'Databases', 'Interaction']
+    uberKea = pd.DataFrame(columns=cols)
+    # Loop through list of files (get database names from folder names)
+    root = "../X2K_Databases/KINASE/Updated_Databases/"
+    databaseList = [name for name in os.listdir(root) if os.path.isdir(os.path.join(root, name))]
+    for gmtPath in databaseList:
+        # Find and import kinase GMT
+        for file in os.listdir(root +gmtPath):
+            if file.endswith(".gmt"):
+                with open(root+gmtPath+"/"+file) as GMT:
+                    gmt = GMT.readlines()
+        # Loop through each line in GMT
+        database = gmtPath.split("/")[0].upper()
+        for line in gmt:
+            lineSp = line.split("\t")
+            kinase = lineSp[0]
+            nameParts = lineSp[1].split('-')
+            Substrates = lineSp[2:]
+            Substrates[-1] = Substrates[-1].strip("\n")
+            pmids = "0;1" #name.split("_")[1] ####
+            # Get group and family
+            for part in nameParts:
+                if part.__contains__("KinaseGroup"):
+                    group = part.replace("KinaseGroup:","").split("_")[0] # Last split to get rid of any lingering name info
+                    if group=="nan":
+                        group = "NA"
+                    break
+                else:
+                    group = "NA"
+            for part in nameParts:
+                if part.__contains__("KinaseFamily"):
+                    family = part.replace("KinaseFamily:","").split("_")[0] # Last split to get rid of any lingering name info
+                    if family=="nan":
+                        family = "NA"
+                    break
+                else:
+                    family = "NA"
+            # Loop through each kinase-substrate interaction
+            for substrate in Substrates:
+                interaction = str(kinase)+"@"+str(substrate)
+                # Create new row for new interaction
+                if interaction not in seenInteractions:
+                    print(database+": Adding new interaction: "+interaction)
+                    newRow = pd.DataFrame(np.column_stack([family, group, kinase, substrate, pmids, database, interaction]), columns=cols)
+                    uberKea = uberKea.append(newRow)
+                    seenInteractions.append(interaction)
+                else:
+                    print(database+": Updating info for interaction: "+interaction)
+                    ## Add any new PMIDS
+                    uniquePMIDS = list(set( uberKea.loc[uberKea['Interaction']==interaction, 'PMIDS'].values[0].split(";")+pmids.split(";")))
+                    uberKea.loc[uberKea['Interaction'] == interaction, 'PMIDS'] = ";".join(uniquePMIDS)
+                    ## Add new database
+                    uniqueDatabases = list(set(uberKea.loc[uberKea['Interaction']==interaction, 'Databases'].values[0].split(";") + [database]))
+                    uberKea.loc[uberKea['Interaction'] == interaction, 'Databases'] = ";".join(uniqueDatabases)
+    # Write CSV (all cols except Interaction)
+    uberKea.drop(labels='Interaction',axis=1, inplace=False).to_csv(root+"updatedUberKeaFile.csv", index=False, header=False)
+    return uberKea
+
+
 

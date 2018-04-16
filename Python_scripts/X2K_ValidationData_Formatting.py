@@ -321,22 +321,48 @@ def uniqueKinasesGMT(testPercent, input, output1, output2, writeType="w", up_dn=
 
 # Make a fake GMT with random genes
 ## Matched to GEO dataset
-def randomDEGsGMT(testGMT):
-    randomGMT = testGMT.strip(".txt")+"-RandomDEGs.txt"
-    with open(testGMT) as GEO80, open(randomGMT, "w") as GEO80_random:
+def randomDEGsGMT(testGMT, write=True):
+    randomGMT = testGMT.strip(".txt").strip(".gmt")+"-RandomDEGs.gmt"
+    GEO_randomList=[]
+    with open(testGMT) as GEO, open(randomGMT, "w") as GEO_random:
         import pandas as pd
         from random import choice
         allGenes = pd.read_table("../X2K_Databases/General_Resources/Moshe_mapping/mappingFile_2017.txt", header=None)[0].str.strip().tolist()
-        geo80 = GEO80.readlines()
-        for line in geo80:
+        geo = GEO.readlines()
+        for line in geo:
             splitLine = line.split("\t")
             DEGs = splitLine[2:]
             randomDEGs=[]
             for x in range(len(DEGs)):
-                randomDEGs.append( choice(allGenes) )
-            GEO80_random.write("\t".join([splitLine[0]]+randomDEGs)+"\n")
-randomDEGsGMT("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET1.80per.txt")
-randomDEGsGMT("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_SUBSET2.20per.txt")
+                randomDEGs.append( str(choice(allGenes)) )
+            newLine = "\t".join([splitLine[0]]+randomDEGs)+"\n"
+            GEO_randomList.append(newLine)
+            if write==True:
+                GEO_random.write(newLine)
+    return GEO_randomList
+
+# Get rank distribution over 1000 random (kinase-matched) GMTs
+def matchedRandomDEGranks(GMTtoMatch, dataset, nIterations=100):
+    upPercentList=[]; dnPercentList=[]
+    for i in range(nIterations):
+        print("Round: "+str(i))
+        # Make random GMT
+        randomGMT1 = randomDEGsGMT(GMTtoMatch, write=False)
+        randomGMT2 = randomDEGsGMT(GMTtoMatch, write=False)
+        # Calculate % of recovered
+        upPercent, dnPercent = getDEkinases(randomGMT1, randomGMT2, dataset=dataset)
+        upPercentList.append(upPercent); dnPercentList.append(dnPercent)
+    return upPercentList+dnPercentList
+PercentList_GEO = matchedRandomDEGranks("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt", dataset="GEO", nIterations=1000)
+PercentList_L1000 = matchedRandomDEGranks("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInhibitors.txt", dataset="L1000", nIterations=1000)
+set(PercentList_GEO)
+set(PercentList_L1000)
+import matplotlib.pyplot as plt
+plt.hist(PercentList_GEO, normed=False, bins=100)
+plt.ylabel('Frequency')
+plt.xlabel('% of target kinases in random gene lists')
+plt.title('Using GEO Target Kinases')
+
 
 
 
@@ -406,6 +432,7 @@ def calculateFitness(population, allDataDF, genCount=1, fitnessMethod='targetAdj
 selectedBinary='1101100000111110110001010011001101110010111'
 
 
+
 def randomX2Kruns(selectedBinary):
     import pandas as pd
     import os
@@ -464,50 +491,155 @@ def randomX2Kruns(selectedBinary):
     return allDataDF, selectedBinary
 
 allDataDF, selectedBinary = randomX2Kruns(selectedBinary)
+allDataDF = pd.read_csv('GA_Results/Null_Distribution/X2K_NullDist-PKlengthCorrected.csv')
 
-
-# Get null distribution s
+# Get null distributions
 def nullDistributions(allDataDF):
+    import pandas as pd
     KINASES = pd.read_table("data/KEA/kea_ranks.txt", header=None)[0].tolist()
     fullranks = list(range(1, len(KINASES) + 1))
     allPKs = allDataDF.predictedKinases.tolist()
     rankList=[]; predictedKinaseList=[]
     for ind in allPKs:
+        print(ind)
         expts = ind.split(";")
         for exp in expts:
             expSplit = exp.split(",")
             misses = set(KINASES) - set(expSplit)
-            remainingRanks = fullranks[len(set(expSplit)):]
+            remainingRanks = fullranks[len(set(expSplit))-1:]
             avgRank = sum(remainingRanks)/len(remainingRanks)
             for k in misses:
                 rankList.append(avgRank)
                 predictedKinaseList.append(k)
-            for i,pkin in enumerate(expSplit):
-                rankList.append(i+1)
-                predictedKinaseList.append(pkin)
-    df = pd.DataFrame({"predictedKinase":predictedKinaseList,"rank":rankList})
-    df['Rank'] = df["rank"].astype(int)
+            if expSplit!=['']:
+                for i,pkin in enumerate(expSplit):
+                    rankList.append(i+1)
+                    predictedKinaseList.append(pkin)
+    df = pd.DataFrame({"predictedKinase":predictedKinaseList,"ranks":rankList})
+    df['Rank'] = df["ranks"].astype(int)
     df['Counts'] = df.groupby(['predictedKinase','Rank']).transform('count')
 
     DF = df.copy()
     DF = DF.drop_duplicates()
-    avgRank = DF.groupby('predictedKinase')['rank'].mean()
 
     from scipy.stats.mstats import zscore
-    newDF = pd.DataFrame({'Rank':range(1,473+1)})
-    newDF = newDF[newDF['Rank']<=20]
+    Zdf = pd.DataFrame({'Rank':range(1,473+1)})
+    Zdf = Zdf.astype(int) #[newDF['Rank']<=20]
+    neverPredicted=[]
     for kinase in KINASES:
         print("Processing: "+str(kinase))
         sub = DF[DF['predictedKinase']==kinase].sort_values(by='Rank')
-        sub = sub[sub['Rank']<=20] # Remove any Ranks over 20
-        tmpMerge = pd.merge(newDF, sub, on='Rank', how='left').fillna(0)
-        tmpMerge['Zscore'] = zscore(tmpMerge['Counts'].tolist())
-        newDF[str(kinase)] = tmpMerge['Zscore']
+        #sub = sub[sub['Rank']<=20] # Remove any Ranks over 20
+        if len(sub)>0:
+            tmpMerge = pd.merge(Zdf, sub, on='Rank', how='left').fillna(0)
+            tmpMerge['Zscore'] = zscore(tmpMerge['Counts'].tolist())
+            Zdf[str(kinase)] = tmpMerge['Zscore']
+        else:
+            neverPredicted.append(kinase)
+            print("No sig ranks for: "+str(kinase))
+    Zdf.to_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions_all.csv", index=None)
 
-    newDF.to_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions_sub.csv", index=None)
 
-import matplotlib.pyplot as plt
-newDF.plot(x="Rank", y="MAPK1")
-avgRank.plot(x=avgRank.index, y=avgRank[0], kind='bar')
+def plotNullDist():
+    # Plot
+    ## Mean rank for every kinase
+    import numpy as np
+    import matplotlib.pyplot as plt
+    DF['ranks'] = pd.to_numeric(DF['ranks'])
+    avgRank = DF[DF['Rank']<=20].groupby('predictedKinase')['ranks'].mean().reset_index().iloc[1:,:]
+    avgRank.plot(x='predictedKinase', y='ranks', kind='bar')
+    plt.xticks(rotation=90, ha='center', fontsize=6)
+
+    medianRank = DF[DF['Rank']<=20].groupby('predictedKinase')['ranks'].median().reset_index().iloc[1:,:]
+    medianRank.plot(x='predictedKinase', y='ranks', kind='bar', label="", legend=False)
+    plt.xticks(rotation=90,  ha='center', fontsize=6)
+    plt.title("Median Rank for all Predicted Kinases")
+
+    ## Single kinase dist
+    def plotGene(gene):
+        geneSub = DF[DF['predictedKinase']==gene][DF['Rank']<=20].copy()
+        geneSub = geneSub.sort_values(by='Rank')
+        geneSub.plot(x="Rank", y="Counts", kind="bar",color="pink", label="", legend=False)
+        plt.title(str(gene)+" : rank frequencies")
+        plt.xticks(np.arange(0, 20, 1))
+    plotGene('TNIK')
+    plotGene('ABL1')
+    plotGene('TYK2')
+    plotGene('VRK2')
+
+    Zdf = pd.read_csv("Validation/Perturbation_Data/Random_GMTs/kinaseNullDistributions_all.csv", index_col=None)
+    def plotZscore(gene):
+        Zdf.plot(x='Rank',y=gene, kind='bar', color='c', legend='')
+        plt.ylabel('Z-score of Rank Frequencies')
+        plt.title(str(gene) + " : Null Distribution")
+    plotZscore('TNIK')
+    plotZscore('ABL1')
+    plotZscore('TYK2')
+    plotZscore('MAPK1')
+
+
+# Check if perturbed/target kinases are showing up in differentially expressed genes
+def getDEkinases(upPath, dnPath, dataset):
+    if type(upPath)==list:
+        up = upPath
+    else:
+        with open(upPath) as UP:
+            up = UP.readlines()
+    if type(upPath)==list:
+        dn = dnPath
+    else:
+        with open(dnPath) as DN:
+            dn = DN.readlines()
+    def DEkinases_GEO(fileLines):
+        DEtargetKinases=[]
+        for line in fileLines:
+            lineSp = line.split("\t")
+            TK = lineSp[0].split("_")[0]
+            DEGs = lineSp[2:]
+            newDEGs=[]
+            for deg in DEGs:
+                d = deg.strip(",1.0").strip("\n")
+                if d !='':
+                    newDEGs.append(d)
+            if str(TK) in newDEGs:
+                DEtargetKinases.append(TK)
+        return len(DEtargetKinases)/ len(fileLines)*100
+    def DEkinases_L1000(fileLines):
+        DEtargetKinases=[]
+        allTKs=[]
+        for line in fileLines:
+            lineSp = line.split("\t")
+            TKs = lineSp[0].split("[")[1].strip("]").split("|")
+            allTKs.append(TKs)
+            DEGs = lineSp[2:]
+            newDEGs=[]
+            for deg in DEGs:
+                newDEGs.append(deg.strip(',1.0').strip("\n"))
+            overlap = set(TKs).intersection(set(newDEGs))
+            if len(overlap)>=1:
+                DEtargetKinases.append(list(overlap))
+        return len(DEtargetKinases) / len(fileLines) * 100 # len(list(chain.from_iterable(allTKs)))
+    if dataset=="GEO":
+        print("GEO Stats:")
+        print("Chance = " + str(round(300 / 20000 * 100, 2)))
+        print("% Kinases in UPregulated differentially expressed genes = "+ str(round(DEkinases_GEO(up),3))+" % ")
+        print("% Kinases in DOWNregulated differentially expressed genes = "+ str(round(DEkinases_GEO(dn),3))+" % ")
+        return DEkinases_GEO(up), DEkinases_GEO(dn)
+    if dataset=="L1000":
+        print("L1000 Stats:")
+        print("Chance = " + str(round(300 / 20000 * 100, 2)))
+        print("% Kinases in UPregulated differentially expressed genes = " + str(round(DEkinases_L1000(up),3))+" % ")
+        print("% Kinases in DOWNregulated differentially expressed genes = " + str(round(DEkinases_L1000(dn),3))+" % ")
+        return DEkinases_L1000(up), DEkinases_L1000(dn)
+
+getDEkinases("Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_up.gmt", \
+                 "Validation/Perturbation_Data/GEO/Kinase_Perturbations_from_GEO_down.gmt", dataset="GEO")
+
+getDEkinases("Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_up_DRH.kinaseInhibitors.txt", \
+                 "Validation/Perturbation_Data/LINCS_L1000_Chem/DrugRepurposingHub_filtered/Chem_dn_DRH.kinaseInhibitors.txt", dataset="L1000")
+
+
+
+
 
 
