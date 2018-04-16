@@ -535,3 +535,4 @@ def createSynonymsDict():
         synDict = pickle.load(f)
 
     return synDict
+
